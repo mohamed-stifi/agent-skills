@@ -1,0 +1,13 @@
+{
+  "title": "TITLE",
+  "brand": "YourBrand",
+  "voice": "am_michael",
+  "speed": 1.18,
+  "pauseBetweenSentencesSec": 0.12,
+  "pauseAfterSectionSec": 0.3,
+  "pronounce": {},
+  "sections": [
+    {"id": "hook", "text": "Question? One line answer. Let's see how it works."},
+    {"id": "cta", "text": "If this helped, follow for more."}
+  ]
+}

@@ -1,0 +1,4 @@
+# Every video skill: shorts from ideas + repo walkthroughs.
+explainer-short
+video-style-extractor
+repo-walkthrough-video

@@ -1,0 +1,3 @@
+# Idea -> vertical explainer video. Learn a style from examples, then produce videos in it.
+explainer-short
+video-style-extractor

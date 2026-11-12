@@ -1,0 +1,44 @@
+{
+  "title": "How rate limiting works",
+  "brand": "YourBrand",
+  "voice": "am_michael",
+  "speed": 1.18,
+  "pauseBetweenSentencesSec": 0.12,
+  "pauseAfterSectionSec": 0.3,
+  "pronounce": {
+    "429": "four twenty nine",
+    "Retry-After": "retry after",
+    "API": "A P I",
+    "APIs": "A P Is"
+  },
+  "sections": [
+    {
+      "id": "hook",
+      "text": "How does an API stop one user from flooding it? It's called rate limiting. Let's see how it works."
+    },
+    {
+      "id": "scenario",
+      "text": "Say Maya runs a weather API. Most apps call it a few times a minute. But one buggy script sends five hundred requests every second. Without a limit, the servers slow down, for everyone."
+    },
+    {
+      "id": "bucket",
+      "text": "The most common fix is a token bucket. Each user gets a bucket that holds ten tokens. Every request takes one token. And the bucket refills at a steady rate, say one token per second."
+    },
+    {
+      "id": "burst",
+      "text": "So when the buggy script fires, the first ten requests take the ten tokens, and they go through. The eleventh request finds the bucket empty. The API answers with status 429, too many requests, and a Retry-After header that says: wait one second."
+    },
+    {
+      "id": "normal",
+      "text": "Now look at a normal app. It sends one request, takes one token, and the bucket refills long before the next one. It never notices the limit."
+    },
+    {
+      "id": "tradeoff",
+      "text": "The bucket size is the trade-off. A big bucket allows short bursts, like a page loading many images at once, but it also lets more abuse through. A small bucket protects the servers, but it can block real users. So most APIs pick a bucket just big enough for normal bursts."
+    },
+    {
+      "id": "cta",
+      "text": "If this helped, follow for more."
+    }
+  ]
+}
