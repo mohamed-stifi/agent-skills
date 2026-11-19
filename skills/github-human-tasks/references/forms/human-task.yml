@@ -1,0 +1,34 @@
+name: Task for a person
+description: Something only a person can do (an account, a payment, a machine outside the repo), as a step-by-step guide.
+labels: ["needs:human", "task-to-OWNER"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Everything that could be automated has been tried first (gh, cloudflared, a local model, an installer). Say what was tried. Steps are numbered, one action each, with what you should see after it.
+  - type: textarea
+    id: why
+    attributes:
+      label: Why a person is needed
+      description: The words first (define any term), then why this can't be done by the build agent, and what it blocks.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What was already tried
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: Numbered. One action per step, the exact place to click or command to run, and what you should see.
+      placeholder: "1. Open … → you should see …\n2. …"
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: How to tell us it's done
+      placeholder: "Comment \"done\" here, or close the issue. The build agent watches this issue and continues."
+    validations:
+      required: true

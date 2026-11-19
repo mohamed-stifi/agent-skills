@@ -1,0 +1,61 @@
+name: Decision for the product owner
+description: A choice the specs leave open, or a place where code must differ from them. Written so someone who didn't build it can decide.
+labels: ["needs:human", "task-to-OWNER"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write for a product owner, not an engineer: define every term, show each option happening to a real operator, and say what the industry does before what we built. Plain sentences, short sections, a number to reply with.
+  - type: input
+    id: ref
+    attributes:
+      label: Register id or spec reference
+      placeholder: "D-03, E-26, 06-policy-plane.md §4.3, or the PR that raised it"
+  - type: textarea
+    id: words
+    attributes:
+      label: The words
+      description: Define every term the question uses, one line each (e.g. kill switch, audit record, acknowledged, FactSet, cassette).
+      placeholder: "- **Kill switch:** the operator's stop button…"
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: The question
+      description: One or two sentences, in plain words.
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: A story
+      description: One concrete scene with a fictional tenant and an on-call person, then what each option does to them.
+      placeholder: "### 03:10 at <a fictional client>\n…\n- **If option 1:** …\n- **If option 2:** …"
+    validations:
+      required: true
+  - type: textarea
+    id: found
+    attributes:
+      label: What we found
+      description: What the code and specs do today, checked, not assumed. Name the file or PR. Say plainly if something promised was never built.
+  - type: textarea
+    id: others
+    attributes:
+      label: What others do
+      description: The best practice of others first (standards, well-known tools and papers), with links, then the common pattern in one sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Choose
+      description: Numbered options, the recommended one first and marked (recommended), each with what it means and what it costs. End with "Reply with the number."
+      placeholder: "1. **… (recommended).** …\n2. **…** …\n3. **…** …\n\nReply with the number."
+    validations:
+      required: true
+  - type: input
+    id: blocks
+    attributes:
+      label: Blocks
+      placeholder: "#21 (and the phase it gates), or nothing"
