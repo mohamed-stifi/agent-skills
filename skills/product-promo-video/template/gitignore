@@ -1,0 +1,12 @@
+# dependencies and caches (rebuilt by setup.sh)
+source/node_modules/
+source/audio/.venv/
+source/audio/__pycache__/
+# intermediate renders (rebuilt by render.sh / audio.sh / captions.sh)
+source/out/
+source/stills/
+source/public/*.mp4
+source/public/*-captions.json
+# big audio masters
+*.wav
+.DS_Store
