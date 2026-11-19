@@ -16,7 +16,7 @@ REPO=${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)}
 [ -n "$REPO" ] || { echo "set REPO=owner/name"; exit 2; }
 export LABEL MARK
 snap() {
-  gh issue list -R "$REPO" --label "$LABEL" --state all --limit 200 \
+  perl -e 'alarm shift; exec @ARGV' 60 gh issue list -R "$REPO" --label "$LABEL" --state all --limit 200 \
     --json number,title,state,comments,url 2>/dev/null
 }
 compare() { # $1 = snapshot file; updates the state file; prints events
