@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: mohamed-stifi
 ---
 
@@ -73,6 +73,7 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 | a question ("what is X?", "is this only a test?") | answer plainly: define the term, use a story; then re-offer the choice |
 | "I don't understand" | rewrite the issue in the full template, after re-checking the code; no apology preamble |
 | "what's the state? what do I decide?" | a short summary: what's settled, the one open choice, the options |
+| "is this important?" | a one-line verdict first (urgent / useful / not needed) and exactly what it blocks or not; then the choice again with a **"later"** option added |
 | a choice ("1", "option 1, plus 2 for later") | map it exactly onto the options; if ambiguous, ask one question |
 | "done" / closed the issue (a task) | verify the effect (e.g. re-run what was blocked), confirm in the issue |
 | feedback on format or process | apply it now, and **update this skill** (below) |

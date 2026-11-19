@@ -1,5 +1,9 @@
 # Changelog — github-human-tasks
 
+## 1.2.0 — 2026-11-19
+- A new kind of reply: "is this important?" gets a one-line verdict (urgent / useful / not needed), what it blocks,
+  then the choice again with a "later" option.
+
 ## 1.1.0 — 2026-11-19
 - New rule from the human: no apology or meta preamble ("Sorry, that was written for engineers. Here it is
   plainly."). Go straight from the header to the content, including in rewrites.
