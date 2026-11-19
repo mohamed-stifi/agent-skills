@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: mohamed-stifi
 ---
 
@@ -88,19 +88,22 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 4. **Follow-ups:** a "later" part of the choice becomes its own issue, linked both ways.
 5. Update the tracking issue and your project memory.
 
-## Review PRs with the human, one at a time
-When the human reviews PRs, show exactly **one** PR at a time, in merge order (the bottom of each stack first):
-- **Make it findable:** put the label `review:now` on that PR only, and assign it to the human. GitHub's
+## Review PRs with the human, a few at a time
+When the human reviews PRs, open as many as they ask for (default **one**; they may ask for e.g. three
+"related, in order"), in merge order (the bottom of each stack first). Number each guide ("Review 6, 2 of 3
+open now: #a → #b → #c") and say which one must merge first when one is stacked on another:
+- **Make it findable:** put the label `review:now` on exactly those PRs, and assign them to the human. GitHub's
   "Assigned to me" page then shows it, and so does `…/pulls?q=is:open+label:review:now`. Give both links.
 - **Guide comment:** the approved template, shortened: the words, what the PR does as a story, what to check
   (minutes, not hours), how to answer. If every PR was opened from the human's own account (your `gh` uses
   it), GitHub disables **Approve**, so the answer is a comment: **merge**, or plain words.
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
-  background. It follows whichever open PR carries `review:now`, and exits on a review, an unmarked comment
-  or line comment, a merge or close, or the label moving.
+  background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
+  or line comment, a PR leaving or joining the label.
 - **On "merge":** merge with the repo's method (merge commit if it says so), check that the base was right
-  (retarget a stacked PR to the default branch once its base has merged), then move the label and the
-  assignee to the next PR, post its guide, re-run `init` and restart the watcher.
+  (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
+  isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
+  label, assign, guides, `init`, restart the watcher.
 - **On anything else:** answer in the PR in plain words; change code only when asked, then say what changed.
 
 ## Keep this skill current

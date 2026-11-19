@@ -1,5 +1,10 @@
 # Changelog — github-human-tasks
 
+## 1.4.0 — 2026-11-19
+- The human chooses how many PRs to review at once (they asked for 3, related and in order): number the guides,
+  state the merge order, and hold a stacked PR's merge until its base is merged. `watch-pr.sh` follows every
+  PR under `review:now`.
+
 ## 1.3.0 — 2026-11-19
 - PR review with the human, one at a time: the `review:now` label plus assigning the human (findable from
   "Assigned to me"), a guide comment, answering by a "merge" comment when Approve is disabled, and `watch-pr.sh`,
