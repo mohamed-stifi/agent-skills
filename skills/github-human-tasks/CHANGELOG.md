@@ -1,5 +1,9 @@
 # Changelog — github-human-tasks
 
+## 1.2.1 — 2026-11-19
+- Fix: `watch.sh` caps each `gh` call at 60 s (`perl` alarm, since macOS has no `timeout`). One hung network
+  call used to keep the watcher alive past its window until the agent's background limit killed it.
+
 ## 1.2.0 — 2026-11-19
 - A new kind of reply: "is this important?" gets a one-line verdict (urgent / useful / not needed), what it blocks,
   then the choice again with a "later" option.
