@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: mohamed-stifi
 ---
 
@@ -43,7 +43,8 @@ gh label create needs:human --color FBCA04 --force
 3. **Research what others do,** with a web search: standards, well-known tools, papers. Lead with the best
    practice, then map your build onto it. Link the sources.
 4. **Every body and comment you post starts** with the visible header `🤖 **Claude** (<project> build agent)`
-   and contains `MARK`.
+   and contains `MARK`. Go straight from the header to the content: no apology or meta preamble
+   ("Sorry, that was written for engineers…", "Here it is plainly"), even when rewriting.
    - The header lets the human tell your messages from theirs.
    - Your `gh` posts use their account, so `MARK` is the only way the watcher tells you apart.
 5. **Create it:** title `Decision: …` or `Task: …`; labels `LABEL`, `needs:human` and the area/phase/type
@@ -70,7 +71,7 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 | The human wrote… | You do |
 |---|---|
 | a question ("what is X?", "is this only a test?") | answer plainly: define the term, use a story; then re-offer the choice |
-| "I don't understand" | rewrite the issue in the full template, after re-checking the code |
+| "I don't understand" | rewrite the issue in the full template, after re-checking the code; no apology preamble |
 | "what's the state? what do I decide?" | a short summary: what's settled, the one open choice, the options |
 | a choice ("1", "option 1, plus 2 for later") | map it exactly onto the options; if ambiguous, ask one question |
 | "done" / closed the issue (a task) | verify the effect (e.g. re-run what was blocked), confirm in the issue |

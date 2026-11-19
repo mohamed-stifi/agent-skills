@@ -1,5 +1,9 @@
 # Changelog — github-human-tasks
 
+## 1.1.0 — 2026-11-19
+- New rule from the human: no apology or meta preamble ("Sorry, that was written for engineers. Here it is
+  plainly."). Go straight from the header to the content, including in rewrites.
+
 ## 1.0.0 — 2026-11-19
 - First version, from a real build where the human answered ~15 decisions on GitHub:
   - the flow: open, watch, handle a reply, record the decision, close via PR;

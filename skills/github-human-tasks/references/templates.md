@@ -1,7 +1,8 @@
 # Templates
 
 Plain words, short sections, a number to reply with. Write for a product owner who didn't build it.
-Every body and comment starts with the header line and contains the marker.
+Every body and comment starts with the header line and contains the marker, then goes straight to the
+content: no apology or meta preamble.
 
 ## Decision issue: title `Decision: <the question in a few words>`
 
