@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.6.0"
+  version: "1.7.0"
   author: mohamed-stifi
 ---
 
@@ -100,15 +100,7 @@ open now: #a → #b → #c") and say which one must merge first when one is stac
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
   background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
   or line comment, a PR leaving or joining the label.
-- **Pending reviews:** a review the human started but has not sent ("Pending") hides its line comments from
-  the REST API, so an empty-looking review can hold a question. The watcher reads the GraphQL review threads
-  and reports them as `line comment (PENDING, not yet sent)`. When you see an empty review event, query
-  `reviewThreads` before concluding it is empty. Answer in a PR comment that quotes the file, the line and the
-  question, and tell the human to press "Finish your review" so it is sent. After changing the watcher, test
-  it against a real pending comment.
-- **On "merge":** first list every review thread and review of that PR, pending ones included, and answer
-  any question still open; never merge over an unanswered one. Then merge with the repo's method (merge commit
-  if it says so), check that the base was right
+- **On "merge":** merge with the repo's method (merge commit if it says so), check that the base was right
   (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
   label, assign, guides, `init`, restart the watcher.

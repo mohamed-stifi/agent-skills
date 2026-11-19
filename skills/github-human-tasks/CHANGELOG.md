@@ -1,5 +1,10 @@
 # Changelog — github-human-tasks
 
+## 1.7.0 — 2026-11-19
+- Removed 1.6.0's pending-review rule and its `watch-pr.sh` change, at the human's request: the question that
+  went unanswered was in a review they had not sent, which was their slip, not a gap in the method. `SKILL.md` and
+  `watch-pr.sh` are back to their 1.5.0 text; the 1.6.0 entry below stays as history.
+
 ## 1.6.0 — 2026-11-19
 - A question in a review the human has not yet sent ("Pending") was invisible: GitHub's REST API hides pending
   line comments. `watch-pr.sh` now also reads the GraphQL review threads and reports them as

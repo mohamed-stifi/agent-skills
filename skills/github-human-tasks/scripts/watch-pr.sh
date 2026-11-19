@@ -6,9 +6,7 @@
 #   REPO=…          MARK=…                                          watch-pr.sh STATE.json watch [minutes] [seconds]
 #
 # Events (exit 0, printed as "EVENT …"): a new review of any state, a new unmarked PR comment or
-# inline review comment (including one inside a PENDING, not yet sent, review: GitHub's REST API hides
-# those, so they are read from the GraphQL review threads), a PR leaving the label (merged, closed or
-# unlabelled), or a PR newly labelled.
+# inline review comment, a PR leaving the label (merged, closed or unlabelled), or a PR newly labelled.
 # A comment counts as the human's when its body lacks MARK. No event before the deadline:
 # "WATCH: no change". Every gh call is capped at 60 s; a failed poll is never an event.
 set -uo pipefail
@@ -24,8 +22,7 @@ snap() { # prints a JSON list of {number,title,state,url,reviews,comments,inline
   for n in $ns; do
     pv=$(cap gh pr view "$n" -R "$REPO" --json number,title,state,url,reviews,comments 2>/dev/null) || return 1
     il=$(cap gh api "repos/$REPO/pulls/$n/comments" --paginate 2>/dev/null) || return 1
-    th=$(cap gh api graphql -F owner="${REPO%%/*}" -F name="${REPO##*/}" -F n="$n" -f query='query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){pullRequest(number:$n){reviewThreads(first:100){nodes{path line originalLine comments(first:50){nodes{id databaseId body state url author{login}}}}}}}}' -q '[.data.repository.pullRequest.reviewThreads.nodes[] as $t | $t.comments.nodes[] | {id,databaseId,body,state,url,login:.author.login,path:$t.path,line:($t.line // $t.originalLine)}]' 2>/dev/null) || return 1
-    pv=$(python3 -c 'import json,sys; pv=json.loads(sys.argv[1]); pv["inline"]=json.loads(sys.argv[2] or "[]"); pv["threads"]=json.loads(sys.argv[3] or "[]"); print(json.dumps(pv))' "$pv" "$il" "$th")
+    pv=$(python3 -c 'import json,sys; pv=json.loads(sys.argv[1]); pv["inline"]=json.loads(sys.argv[2] or "[]"); print(json.dumps(pv))' "$pv" "$il")
     [ $first = 1 ] && first=0 || out="$out,"
     out="$out$pv"
   done
@@ -42,7 +39,6 @@ def ids(pr):
     seen = [ "r:"+str(r.get("id") or r.get("submittedAt")) for r in pr.get("reviews", []) ]
     seen += [ "c:"+c["url"] for c in pr.get("comments", []) ]
     seen += [ "i:"+str(c["id"]) for c in pr.get("inline", []) ]
-    seen += [ "i:"+str(c["databaseId"]) if c.get("databaseId") else "t:"+c["id"] for c in pr.get("threads", []) ]
     return {"state": pr.get("state"), "seen": sorted(seen)}
 new = {str(pr["number"]): ids(pr) for pr in cur}
 ev = []
@@ -68,12 +64,6 @@ if old is not None:
             if "i:"+str(c["id"]) not in seen and MARK not in (c.get("body") or ""):
                 body = " ".join((c.get("body") or "").split())
                 ev.append(f"EVENT #{n} line comment on {c.get('path')}:{c.get('line') or c.get('original_line')} by {(c.get('user') or {}).get('login','?')}: {body[:600]}  {c.get('html_url','')}")
-        for c in pr.get("threads", []):
-            k = "i:"+str(c["databaseId"]) if c.get("databaseId") else "t:"+c["id"]
-            if k not in seen and MARK not in (c.get("body") or ""):
-                body = " ".join((c.get("body") or "").split())
-                st = "PENDING, not yet sent" if c.get("state") == "PENDING" else str(c.get("state")).lower()
-                ev.append(f"EVENT #{n} line comment ({st}) on {c.get('path')}:{c.get('line')} by {c.get('login','?')}: {body[:600]}  {c.get('url','')}")
 json.dump(new, open(state_path, "w"))
 print("\n".join(ev))
 PY
