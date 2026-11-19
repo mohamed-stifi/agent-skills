@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   author: mohamed-stifi
 ---
 
@@ -105,6 +105,18 @@ open now: #a → #b → #c") and say which one must merge first when one is stac
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
   label, assign, guides, `init`, restart the watcher.
 - **On anything else:** answer in the PR in plain words; change code only when asked, then say what changed.
+
+## Delegate the liaison (keep the main agent's context clean)
+When the main agent runs other work (e.g. a build with many delegates), hand this whole skill to **one**
+liaison sub-agent: it runs both watchers, opens review sets, writes guides, merges on the human's word,
+answers questions and keeps this skill current. It never edits code. It ends **every** turn with exactly one
+line for its parent:
+- `STATUS: waiting (open: #a #b; issues watched: N)` when nothing needs the parent;
+- `NEED:` plus bullets, only for: a **product decision** the human took (issue, option, one line), a
+  **change request** on a PR that needs code, a **merge conflict**, a **blocker**, or a **skill update**
+  (version and rule).
+The parent records product decisions in its own memory and routes code work; it stops its own watchers
+first, so only one agent answers the human.
 
 ## Keep this skill current
 When the human corrects or adds to how you work together in these issues (format, labels, header,

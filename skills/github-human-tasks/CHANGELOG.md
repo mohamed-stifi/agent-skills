@@ -1,5 +1,9 @@
 # Changelog — github-human-tasks
 
+## 1.5.0 — 2026-11-19
+- Delegation protocol (the human's request): one liaison sub-agent runs the whole loop and reports to its parent
+  only `STATUS:` or `NEED:` (product decisions, change requests, conflicts, blockers, skill updates).
+
 ## 1.4.0 — 2026-11-19
 - The human chooses how many PRs to review at once (they asked for 3, related and in order): number the guides,
   state the merge order, and hold a stacked PR's merge until its base is merged. `watch-pr.sh` follows every
