@@ -1,6 +1,13 @@
 # Changelog — github-human-tasks
 
 ## 1.5.0 — 2026-11-19
+- A question in a review the human has not yet sent ("Pending") was invisible: GitHub's REST API hides pending
+  line comments. `watch-pr.sh` now also reads the GraphQL review threads and reports them as
+  `line comment (PENDING, not yet sent)`. New rules: query `reviewThreads` before calling a review empty, answer
+  in a PR comment and ask the human to press "Finish your review", and answer every open review question before
+  merging.
+
+## 1.5.0 — 2026-11-19
 - Delegation protocol (the human's request): one liaison sub-agent runs the whole loop and reports to its parent
   only `STATUS:` or `NEED:` (product decisions, change requests, conflicts, blockers, skill updates).
 
