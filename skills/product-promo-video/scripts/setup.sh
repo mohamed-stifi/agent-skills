@@ -33,7 +33,8 @@ if [ ! -f .promo.env ]; then
   cp "$SKILL/template/brief.md" "$SKILL/template/STORYBOARD.md" .
   sed "s#{{PRODUCT}}#${PRODUCT:-$SLUG}#g; s#{{CWD}}#$CWD#g; s#{{SLUG}}#$SLUG#g" "$SKILL/template/README.md" > README.md
   cp "$SKILL/template/gitignore" .gitignore
-  mkdir -p output output-extras
+  mkdir -p output output-extras reports
+  printf '# Reports\nOne file per role (references/roles.md), each <= 40 lines.\n' > reports/README.md
   case "$FORMAT" in
     16:9) W=1920; H=1080;; 9:16) W=1080; H=1920;; 1:1) W=1080; H=1080;; *) echo "format must be 16:9, 9:16 or 1:1"; exit 1;;
   esac

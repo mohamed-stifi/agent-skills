@@ -11,7 +11,7 @@ One repo = one source of truth: install by symlink and every agent updates with 
 | [explainer-short](skills/explainer-short/) | 1.1.0 | Idea → finished vertical explainer video (MP4 1080×1920 + .srt + cover + upload text) in a dark-canvas, hand-lettered, one-continuous-diagram tech style. Local & free. | node 18+, ffmpeg, uv |
 | [video-style-extractor](skills/video-style-extractor/) | 1.0.0 | Example videos (links) → measured style guide (`style.md`) an agent can follow. | ffmpeg, uv |
 | [repo-walkthrough-video](skills/repo-walkthrough-video/) | 1.0.0 | Tests every function of a repo for real, then records a narrated, chaptered 1080p walkthrough. | macOS, vhs, ffmpeg, jq, Python+Pillow |
-| [product-promo-video](skills/product-promo-video/) | 1.0.0 | Product (link, repo or brief) → finished promo films: a ≤ 60 s story-driven 16:9 film + 15 s and 6 s cuts (or story, teaser, explainer, 9:16, 1:1), camera motion, UI drawn in code, the product's brand, voice-over, synthesized music and sound design, captions. Local & free. | node 18+, ffmpeg, uv, git |
+| [product-promo-video](skills/product-promo-video/) | 1.1.0 | Product (link, repo or brief) → finished promo films: a ≤ 60 s story-driven 16:9 film + 15 s and 6 s cuts (or story, teaser, explainer, 9:16, 1:1), camera motion, UI drawn in code, the product's brand, voice-over, synthesized music and sound design, captions. Local & free. | node 18+, ffmpeg, uv, git |
 | [github-human-tasks](skills/github-human-tasks/) | 1.0.0 | Decisions and person-only tasks as watched GitHub issues: an approved format (words → story → what we found → what others do → choose), a 🤖 header plus marker, a watcher, and how to record a decision and close it via PR. | gh, python3 |
 
 ## Bundles (skills that work together)

@@ -1,4 +1,4 @@
-# Subagent brief (fill the <…> and send one per group, all in the same message, foreground)
+# R3 scene-builder brief (mid tier; fill the <…> and send one per group, all in the same message, foreground)
 
 You are a senior motion designer + React engineer building part of a <N>-second, <W>×<H> promo film in Remotion 4 (60 fps)
 for <product>: <one-line description>.
@@ -25,5 +25,6 @@ source/stills/<SceneId>-sheet.png). View the sheet; render single frames with
 Check legibility, hierarchy, clipping, blur only during fast moves, cut colours, timing. Fix and re-render.
 At least 2 critique-and-fix passes; re-check the final sheet after your last change. Max 4 render rounds per scene.
 
-FINAL REPORT (short): beat by beat per scene with frame numbers of every decisive snap, stamp, count, whip and exit
-(the audio is synced from these numbers), deviations from the storyboard and why, what you did not verify.
+FINAL REPORT (≤ 40 lines) written to <WS>/reports/scenes-<group>.md, and its path at the end of your answer:
+beat by beat per scene with frame numbers of every decisive snap, stamp, count, whip and exit (the audio is synced from
+these numbers), deviations from the storyboard and why, what you did not verify.

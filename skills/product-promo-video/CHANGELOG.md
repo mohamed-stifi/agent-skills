@@ -1,5 +1,12 @@
 # Changelog — product-promo-video
 
+## 1.1.0 — 2026-11-19
+- The orchestrator delegates every heavy step: new `references/roles.md` with six roles (R0 operator on a small model;
+  R1 researcher, R2 story writer, R3 scene builders, R4 reviewer, R5 audio producer on a mid model), their briefs,
+  and what the orchestrator checks. Research (step 2) is no longer done by the orchestrator.
+- Agents hand off through files: each role writes a ≤ 40-line report to `WS/reports/<role>.md`; `setup.sh` creates it.
+- The storyboard template carries a voice line per scene, so the audio producer works from the storyboard.
+
 ## 1.0.0 — 2026-11-19
 - First version, distilled from two real films (Nemo: a 53 s incident film and a 58.5 s main film with 15 s and 6 s cuts).
 - Workspace per product under `~/.product-promo-videos/<working-dir>/<slug>/`, git-versioned; `output/` holds only the
