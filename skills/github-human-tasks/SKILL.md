@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.7.0"
+  version: "1.8.0"
   author: mohamed-stifi
 ---
 
@@ -100,6 +100,14 @@ open now: #a → #b → #c") and say which one must merge first when one is stac
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
   background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
   or line comment, a PR leaving or joining the label.
+- **Look ahead, but do not assign early.** While a set is under review, prepare the next one: pick it,
+  trial-merge it against the default branch and the open set, run its checks, and write its guides, and hold
+  them unposted. Do not label or assign it, so the human's list shows only what they are reviewing now. The moment
+  they merge the current set, re-run the trial merge (the base moved), then label, assign and post the next set's
+  guides at once, and start preparing the one after it. Fixes that other people must make (a refresh, a rework)
+  are requested while the set is still under review, so the next set is ready on time.
+- **Merged PRs stay watched for a while.** The human often comments on a PR after it merged. Pass the last few
+  merged PR numbers as `EXTRA_PRS="70 89 119"` to `watch-pr.sh` (also to `init`), so their new comments are seen.
 - **On "merge":** merge with the repo's method (merge commit if it says so), check that the base was right
   (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:

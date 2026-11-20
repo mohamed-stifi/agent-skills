@@ -4,6 +4,8 @@
 #
 #   REPO=owner/name MARK='<!-- proj-agent -->' [LABEL=review:now] watch-pr.sh STATE.json init
 #   REPO=…          MARK=…                                          watch-pr.sh STATE.json watch [minutes] [seconds]
+#   EXTRA_PRS="70 89"  (optional, both modes): PR numbers followed whatever their state or label, for
+#   example the last merged ones, since the human often comments after a merge.
 #
 # Events (exit 0, printed as "EVENT …"): a new review of any state, a new unmarked PR comment or
 # inline review comment, a PR leaving the label (merged, closed or unlabelled), or a PR newly labelled.
@@ -19,6 +21,7 @@ cap() { perl -e 'alarm shift; exec @ARGV' 60 "$@"; }
 snap() { # prints a JSON list of {number,title,state,url,reviews,comments,inline}, one per labelled PR
   local ns n pv il out="["; local first=1
   ns=$(cap gh pr list -R "$REPO" --label "$LABEL" --state open --json number -q '.[].number' 2>/dev/null) || return 1
+  ns=$(printf '%s\n' $ns ${EXTRA_PRS:-} | grep -E '^[0-9]+$' | sort -un)
   for n in $ns; do
     pv=$(cap gh pr view "$n" -R "$REPO" --json number,title,state,url,reviews,comments 2>/dev/null) || return 1
     il=$(cap gh api "repos/$REPO/pulls/$n/comments" --paginate 2>/dev/null) || return 1

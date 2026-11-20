@@ -1,5 +1,11 @@
 # Changelog — github-human-tasks
 
+## 1.8.0 — 2026-11-20
+- Look ahead (the human's request): while a review set is open, prepare the next one (trial merge, checks,
+  guides) without labelling or assigning it, and assign it the moment the current set merges. Also, `watch-pr.sh`
+  accepts `EXTRA_PRS`, so comments on just-merged PRs are seen (the human's request came on a merged PR and was
+  missed for an hour).
+
 ## 1.7.0 — 2026-11-19
 - Removed 1.6.0's pending-review rule and its `watch-pr.sh` change, at the human's request: the question that
   went unanswered was in a review they had not sent, which was their slip, not a gap in the method. `SKILL.md` and
