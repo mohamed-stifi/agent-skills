@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.3"
+  version: "1.9.4"
   author: mohamed-stifi
 ---
 
@@ -127,10 +127,15 @@ which one must merge first when one is stacked on another:
   it in the stack, **hold the merge** and send the parent a `NEED:` naming the PR, the issue and the sentence
   that does it. A stack's description repeats "the top PR closes #N" in every layer, and GitHub reads that as a
   closing keyword when the first layer merges. The fix is in the body (write "closes issue N", with no `#`, on
-  every layer but the top). The liaison cannot edit bodies or reopen issues. After a merge, check that the
+  every layer but the top). The liaison cannot edit bodies (except the unchanged re-save below) or reopen issues. After a merge, check that the
   issues it closed are the ones you expected. GitHub fills in the list lazily: a PR retargeted a few minutes
   ago can show an empty list, so read it again before concluding "closes nothing" (a top PR should list its
-  issue; if it still does not, tell the parent, who closes the issue by hand after the merge).
+  issue). If a stack top's own "Closes #N" is still not registered after it has retargeted to the default
+  branch, **re-save the body unchanged** so GitHub recomputes the link:
+  `gh pr view N --json body --jq .body > f && gh pr edit N --body-file f`. Never change the text (the
+  parent authorised this one body edit and nothing else; every other body stays untouched), then read the
+  list again and update your own guide's "closes" sentence. If it is still empty, tell the parent, who closes
+  the issue by hand after the merge.
 - **A recorded default that promises future work must point at an open issue.** When the human merges on a guide
   that said "default: X, later" (a test, a migration, a follow-up PR, a decision), record the defaults on the PR,
   and for each one that promises work check that an open issue exists (search before you file). If none does,

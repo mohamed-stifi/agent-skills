@@ -1,5 +1,11 @@
 # Changelog — github-human-tasks
 
+## 1.9.4 — 2026-11-20
+- A stack top whose "Closes #N" is not registered after it retargets to the default branch: re-save its body
+  unchanged (`gh pr view N --json body --jq .body > f && gh pr edit N --body-file f`), never altering the
+  text. This is the one PR-body edit the liaison may make, authorised by the parent after it worked for #153
+  and #202.
+
 ## 1.9.3 — 2026-11-20
 - Never lose the human's comment to a restart (a real miss: two "marge" comments sat unseen for 20 and 6 minutes
   because an `init` run just after them marked them as seen): do not `init` just to add PRs to the list, list
