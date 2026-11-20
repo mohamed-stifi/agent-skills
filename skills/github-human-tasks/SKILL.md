@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.0"
+  version: "1.9.1"
   author: mohamed-stifi
 ---
 
@@ -114,6 +114,15 @@ which one must merge first when one is stacked on another:
   (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
   label, assign, guides, `init`, restart the watcher.
+- **A recorded default that promises future work must point at an open issue.** When the human merges on a guide
+  that said "default: X, later" (a test, a migration, a follow-up PR, a decision), record the defaults on the PR,
+  and for each one that promises work check that an open issue exists (search before you file). If none does,
+  file it: an engineering issue (phase and area labels, a link back to the merged PR) for build work, or a
+  `Decision:` issue in the approved format when it needs the human's word (for example a change to a shared
+  contract). Link it from the PR note and from the tracking issue, and tell the parent in a `NEED:` in the same
+  turn. Work that belongs in an open PR (a test for the next part of a stack) goes to the parent as a `NEED:`
+  naming the PR. Never write "I have asked" in a note before that `NEED:` is sent, and cite the issue that
+  really holds the work (check its number and state first).
 - **On anything else:** answer in the PR in plain words; change code only when asked, then say what changed.
 
 ## Delegate the liaison (keep the main agent's context clean)

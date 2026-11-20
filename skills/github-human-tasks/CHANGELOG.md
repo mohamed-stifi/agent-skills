@@ -1,5 +1,12 @@
 # Changelog — github-human-tasks
 
+## 1.9.1 — 2026-11-20
+- A recorded default that promises future work must point at an open issue (the parent's rule, after a default
+  on a merged PR promised a test and I wrote "I have asked" before asking, and an earlier note cited a closed
+  issue for a follow-up that lived in another): search for the issue, file it if none exists (engineering issue,
+  or a `Decision:` issue when it needs the human), link it from the PR note and the tracking issue, and send the
+  parent a `NEED:` in the same turn. Never say "I have asked" before the `NEED:` is sent.
+
 ## 1.9.0 — 2026-11-20
 - Five at a time (the human's request: "give me next 5 PRs to review, not only one or two"): the default set size
   is five, not one. Open each PR the moment it is verified, never hold ready PRs back for a slower one, and keep
