@@ -1,5 +1,10 @@
 # Changelog — github-human-tasks
 
+## 1.9.0 — 2026-11-20
+- Five at a time (the human's request: "give me next 5 PRs to review, not only one or two"): the default set size
+  is five, not one. Open each PR the moment it is verified, never hold ready PRs back for a slower one, and keep
+  five open while verified PRs exist.
+
 ## 1.8.0 — 2026-11-20
 - Look ahead (the human's request): while a review set is open, prepare the next one (trial merge, checks,
   guides) without labelling or assigning it, and assign it the moment the current set merges. Also, `watch-pr.sh`

@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.8.0"
+  version: "1.9.0"
   author: mohamed-stifi
 ---
 
@@ -89,9 +89,11 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 5. Update the tracking issue and your project memory.
 
 ## Review PRs with the human, a few at a time
-When the human reviews PRs, open as many as they ask for (default **one**; they may ask for e.g. three
-"related, in order"), in merge order (the bottom of each stack first). Number each guide ("Review 6, 2 of 3
-open now: #a → #b → #c") and say which one must merge first when one is stacked on another:
+When the human reviews PRs, keep **five** open for them at a time (their words: "give me next 5 PRs to review,
+not only one or two"; they may ask for another number), in merge order (the bottom of each stack first). Open
+each one as soon as it is verified: never hold ready PRs back for a slower one, and never leave the human with
+fewer than five while verified PRs exist. Number each guide ("Review 6, 2 of 5 open now: #a → #b → #c") and say
+which one must merge first when one is stacked on another:
 - **Make it findable:** put the label `review:now` on exactly those PRs, and assign them to the human. GitHub's
   "Assigned to me" page then shows it, and so does `…/pulls?q=is:open+label:review:now`. Give both links.
 - **Guide comment:** the approved template, shortened: the words, what the PR does as a story, what to check
