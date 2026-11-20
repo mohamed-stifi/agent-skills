@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.2"
+  version: "1.9.3"
   author: mohamed-stifi
 ---
 
@@ -102,6 +102,13 @@ which one must merge first when one is stacked on another:
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
   background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
   or line comment, a PR leaving or joining the label.
+- **Never lose the human's comment to a restart.** `watch-pr.sh … init` marks every comment that exists as
+  already seen, so an `init` run between the human's comment and the watcher's next poll swallows their
+  "merge". Adding PRs to `EXTRA_PRS` makes the next `watch` report them as "newly under review:now" even when
+  they are not labelled; that event is harmless, so read it and restart without `init`. If you must `init`
+  (state out of date), first list the human's comments newer than the last one you handled
+  (`gh pr view N --json comments`, comments without your marker) on every PR you track, and act on them.
+  After any restart, run that same listing once.
 - **Look ahead, but do not assign early.** While a set is under review, prepare the next one: pick it,
   trial-merge it against the default branch and the open set, run its checks, and write its guides, and hold
   them unposted. Do not label or assign it, so the human's list shows only what they are reviewing now. The moment
@@ -121,7 +128,9 @@ which one must merge first when one is stacked on another:
   that does it. A stack's description repeats "the top PR closes #N" in every layer, and GitHub reads that as a
   closing keyword when the first layer merges. The fix is in the body (write "closes issue N", with no `#`, on
   every layer but the top). The liaison cannot edit bodies or reopen issues. After a merge, check that the
-  issues it closed are the ones you expected.
+  issues it closed are the ones you expected. GitHub fills in the list lazily: a PR retargeted a few minutes
+  ago can show an empty list, so read it again before concluding "closes nothing" (a top PR should list its
+  issue; if it still does not, tell the parent, who closes the issue by hand after the merge).
 - **A recorded default that promises future work must point at an open issue.** When the human merges on a guide
   that said "default: X, later" (a test, a migration, a follow-up PR, a decision), record the defaults on the PR,
   and for each one that promises work check that an open issue exists (search before you file). If none does,

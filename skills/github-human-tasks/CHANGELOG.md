@@ -1,5 +1,12 @@
 # Changelog — github-human-tasks
 
+## 1.9.3 — 2026-11-20
+- Never lose the human's comment to a restart (a real miss: two "marge" comments sat unseen for 20 and 6 minutes
+  because an `init` run just after them marked them as seen): do not `init` just to add PRs to the list, list
+  the human's unhandled comments on every tracked PR before any `init`, and once after any restart.
+- GitHub computes a PR's closing-issues list lazily after a retarget (a top PR read `[]`, then `[31]` minutes
+  later): re-read before trusting an empty list, and tell the parent when a top PR still lists nothing.
+
 ## 1.9.2 — 2026-11-20
 - Before every merge, read `gh pr view N --json closingIssuesReferences`; hold the merge and send a `NEED:` if
   it closes an issue while a same-issue PR is still open above it (the parent's rule, after #156's description
