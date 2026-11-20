@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.1"
+  version: "1.9.2"
   author: mohamed-stifi
 ---
 
@@ -114,6 +114,14 @@ which one must merge first when one is stacked on another:
   (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
   label, assign, guides, `init`, restart the watcher.
+- **Before every merge, read what it would close.** Run `gh pr view N --json closingIssuesReferences` on the
+  PR you are about to merge (it targets the default branch by then, so the list is real: a stacked PR shows
+  an empty list until its base merges). If it closes an issue while a PR of the same issue is still open above
+  it in the stack, **hold the merge** and send the parent a `NEED:` naming the PR, the issue and the sentence
+  that does it. A stack's description repeats "the top PR closes #N" in every layer, and GitHub reads that as a
+  closing keyword when the first layer merges. The fix is in the body (write "closes issue N", with no `#`, on
+  every layer but the top). The liaison cannot edit bodies or reopen issues. After a merge, check that the
+  issues it closed are the ones you expected.
 - **A recorded default that promises future work must point at an open issue.** When the human merges on a guide
   that said "default: X, later" (a test, a migration, a follow-up PR, a decision), record the defaults on the PR,
   and for each one that promises work check that an open issue exists (search before you file). If none does,

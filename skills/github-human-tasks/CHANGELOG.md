@@ -1,5 +1,12 @@
 # Changelog — github-human-tasks
 
+## 1.9.2 — 2026-11-20
+- Before every merge, read `gh pr view N --json closingIssuesReferences`; hold the merge and send a `NEED:` if
+  it closes an issue while a same-issue PR is still open above it (the parent's rule, after #156's description
+  line "#163 … closes #31" closed #31 when part 1 merged, and an audit found #19, #25, #30 and #36 closed by a
+  lower layer the same day). The cure is in the body ("closes issue N", no `#`, except on the top PR). A
+  stacked PR's list is empty until its base merges, so the check is made at merge time.
+
 ## 1.9.1 — 2026-11-20
 - A recorded default that promises future work must point at an open issue (the parent's rule, after a default
   on a merged PR promised a test and I wrote "I have asked" before asking, and an earlier note cited a closed
