@@ -1,5 +1,11 @@
 # Changelog — github-human-tasks
 
+## 2.0.1 — 2026-11-21
+- Issue forms set the title prefix (`Decision: `, `Task: `), drop one project's ids and terms from their
+  placeholders, require "What we found", and use the templates' heading "When it's done". Field ids unchanged.
+- `references/templates.md` points to SKILL.md for the header and marker rule instead of restating it.
+  `tests/forms.sh` checks all of it.
+
 ## 2.0.0 — 2026-11-21
 - PR review mode (review sets, the PR watcher, merging, closing-keyword checks, defaults that promise work)
   moved to `references/pr-review.md`; SKILL.md points to it and is 44% smaller (13,876 → about 7,800 chars).

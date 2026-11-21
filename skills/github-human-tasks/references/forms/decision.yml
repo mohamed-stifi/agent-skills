@@ -1,5 +1,6 @@
 name: Decision for the product owner
 description: A choice the specs leave open, or a place where code must differ from them. Written so someone who didn't build it can decide.
+title: "Decision: "
 labels: ["needs:human", "task-to-OWNER"]
 body:
   - type: markdown
@@ -10,13 +11,13 @@ body:
     id: ref
     attributes:
       label: Register id or spec reference
-      placeholder: "D-03, E-26, 06-policy-plane.md §4.3, or the PR that raised it"
+      placeholder: "a spec section, an ADR, a register id, or the PR that raised it"
   - type: textarea
     id: words
     attributes:
       label: The words
-      description: Define every term the question uses, one line each (e.g. kill switch, audit record, acknowledged, FactSet, cassette).
-      placeholder: "- **Kill switch:** the operator's stop button…"
+      description: Define every term the question uses, one line each.
+      placeholder: "- **<term>:** <one plain line>"
     validations:
       required: true
   - type: textarea
@@ -39,6 +40,8 @@ body:
     attributes:
       label: What we found
       description: What the code and specs do today, checked, not assumed. Name the file or PR. Say plainly if something promised was never built.
+    validations:
+      required: true
   - type: textarea
     id: others
     attributes:
