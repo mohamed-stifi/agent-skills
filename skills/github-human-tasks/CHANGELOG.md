@@ -1,5 +1,55 @@
 # Changelog — github-human-tasks
 
+## 1.9.4 — 2026-11-20
+- A stack top whose "Closes #N" is not registered after it retargets to the default branch: re-save its body
+  unchanged (`gh pr view N --json body --jq .body > f && gh pr edit N --body-file f`), never altering the
+  text. This is the one PR-body edit the liaison may make, authorised by the parent after it worked for #153
+  and #202.
+
+## 1.9.3 — 2026-11-20
+- Never lose the human's comment to a restart (a real miss: two "marge" comments sat unseen for 20 and 6 minutes
+  because an `init` run just after them marked them as seen): do not `init` just to add PRs to the list, list
+  the human's unhandled comments on every tracked PR before any `init`, and once after any restart.
+- GitHub computes a PR's closing-issues list lazily after a retarget (a top PR read `[]`, then `[31]` minutes
+  later): re-read before trusting an empty list, and tell the parent when a top PR still lists nothing.
+
+## 1.9.2 — 2026-11-20
+- Before every merge, read `gh pr view N --json closingIssuesReferences`; hold the merge and send a `NEED:` if
+  it closes an issue while a same-issue PR is still open above it (the parent's rule, after #156's description
+  line "#163 … closes #31" closed #31 when part 1 merged, and an audit found #19, #25, #30 and #36 closed by a
+  lower layer the same day). The cure is in the body ("closes issue N", no `#`, except on the top PR). A
+  stacked PR's list is empty until its base merges, so the check is made at merge time.
+
+## 1.9.1 — 2026-11-20
+- A recorded default that promises future work must point at an open issue (the parent's rule, after a default
+  on a merged PR promised a test and I wrote "I have asked" before asking, and an earlier note cited a closed
+  issue for a follow-up that lived in another): search for the issue, file it if none exists (engineering issue,
+  or a `Decision:` issue when it needs the human), link it from the PR note and the tracking issue, and send the
+  parent a `NEED:` in the same turn. Never say "I have asked" before the `NEED:` is sent.
+
+## 1.9.0 — 2026-11-20
+- Five at a time (the human's request: "give me next 5 PRs to review, not only one or two"): the default set size
+  is five, not one. Open each PR the moment it is verified, never hold ready PRs back for a slower one, and keep
+  five open while verified PRs exist.
+
+## 1.8.0 — 2026-11-20
+- Look ahead (the human's request): while a review set is open, prepare the next one (trial merge, checks,
+  guides) without labelling or assigning it, and assign it the moment the current set merges. Also, `watch-pr.sh`
+  accepts `EXTRA_PRS`, so comments on just-merged PRs are seen (the human's request came on a merged PR and was
+  missed for an hour).
+
+## 1.7.0 — 2026-11-19
+- Removed 1.6.0's pending-review rule and its `watch-pr.sh` change, at the human's request: the question that
+  went unanswered was in a review they had not sent, which was their slip, not a gap in the method. `SKILL.md` and
+  `watch-pr.sh` are back to their 1.5.0 text; the 1.6.0 entry below stays as history.
+
+## 1.6.0 — 2026-11-19
+- A question in a review the human has not yet sent ("Pending") was invisible: GitHub's REST API hides pending
+  line comments. `watch-pr.sh` now also reads the GraphQL review threads and reports them as
+  `line comment (PENDING, not yet sent)`. New rules: query `reviewThreads` before calling a review empty, answer
+  in a PR comment and ask the human to press "Finish your review", and answer every open review question before
+  merging.
+
 ## 1.5.0 — 2026-11-19
 - Delegation protocol (the human's request): one liaison sub-agent runs the whole loop and reports to its parent
   only `STATUS:` or `NEED:` (product decisions, change requests, conflicts, blockers, skill updates).

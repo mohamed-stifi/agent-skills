@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.5.0"
+  version: "1.9.4"
   author: mohamed-stifi
 ---
 
@@ -89,9 +89,11 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 5. Update the tracking issue and your project memory.
 
 ## Review PRs with the human, a few at a time
-When the human reviews PRs, open as many as they ask for (default **one**; they may ask for e.g. three
-"related, in order"), in merge order (the bottom of each stack first). Number each guide ("Review 6, 2 of 3
-open now: #a → #b → #c") and say which one must merge first when one is stacked on another:
+When the human reviews PRs, keep **five** open for them at a time (their words: "give me next 5 PRs to review,
+not only one or two"; they may ask for another number), in merge order (the bottom of each stack first). Open
+each one as soon as it is verified: never hold ready PRs back for a slower one, and never leave the human with
+fewer than five while verified PRs exist. Number each guide ("Review 6, 2 of 5 open now: #a → #b → #c") and say
+which one must merge first when one is stacked on another:
 - **Make it findable:** put the label `review:now` on exactly those PRs, and assign them to the human. GitHub's
   "Assigned to me" page then shows it, and so does `…/pulls?q=is:open+label:review:now`. Give both links.
 - **Guide comment:** the approved template, shortened: the words, what the PR does as a story, what to check
@@ -100,10 +102,49 @@ open now: #a → #b → #c") and say which one must merge first when one is stac
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
   background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
   or line comment, a PR leaving or joining the label.
+- **Never lose the human's comment to a restart.** `watch-pr.sh … init` marks every comment that exists as
+  already seen, so an `init` run between the human's comment and the watcher's next poll swallows their
+  "merge". Adding PRs to `EXTRA_PRS` makes the next `watch` report them as "newly under review:now" even when
+  they are not labelled; that event is harmless, so read it and restart without `init`. If you must `init`
+  (state out of date), first list the human's comments newer than the last one you handled
+  (`gh pr view N --json comments`, comments without your marker) on every PR you track, and act on them.
+  After any restart, run that same listing once.
+- **Look ahead, but do not assign early.** While a set is under review, prepare the next one: pick it,
+  trial-merge it against the default branch and the open set, run its checks, and write its guides, and hold
+  them unposted. Do not label or assign it, so the human's list shows only what they are reviewing now. The moment
+  they merge the current set, re-run the trial merge (the base moved), then label, assign and post the next set's
+  guides at once, and start preparing the one after it. Fixes that other people must make (a refresh, a rework)
+  are requested while the set is still under review, so the next set is ready on time.
+- **Merged PRs stay watched for a while.** The human often comments on a PR after it merged. Pass the last few
+  merged PR numbers as `EXTRA_PRS="70 89 119"` to `watch-pr.sh` (also to `init`), so their new comments are seen.
 - **On "merge":** merge with the repo's method (merge commit if it says so), check that the base was right
   (retarget a stacked PR to the default branch once its base has merged). A "merge" on a PR whose base PR
   isn't merged yet waits until that one is. When the open set is done, open the next set the same way:
   label, assign, guides, `init`, restart the watcher.
+- **Before every merge, read what it would close.** Run `gh pr view N --json closingIssuesReferences` on the
+  PR you are about to merge (it targets the default branch by then, so the list is real: a stacked PR shows
+  an empty list until its base merges). If it closes an issue while a PR of the same issue is still open above
+  it in the stack, **hold the merge** and send the parent a `NEED:` naming the PR, the issue and the sentence
+  that does it. A stack's description repeats "the top PR closes #N" in every layer, and GitHub reads that as a
+  closing keyword when the first layer merges. The fix is in the body (write "closes issue N", with no `#`, on
+  every layer but the top). The liaison cannot edit bodies (except the unchanged re-save below) or reopen issues. After a merge, check that the
+  issues it closed are the ones you expected. GitHub fills in the list lazily: a PR retargeted a few minutes
+  ago can show an empty list, so read it again before concluding "closes nothing" (a top PR should list its
+  issue). If a stack top's own "Closes #N" is still not registered after it has retargeted to the default
+  branch, **re-save the body unchanged** so GitHub recomputes the link:
+  `gh pr view N --json body --jq .body > f && gh pr edit N --body-file f`. Never change the text (the
+  parent authorised this one body edit and nothing else; every other body stays untouched), then read the
+  list again and update your own guide's "closes" sentence. If it is still empty, tell the parent, who closes
+  the issue by hand after the merge.
+- **A recorded default that promises future work must point at an open issue.** When the human merges on a guide
+  that said "default: X, later" (a test, a migration, a follow-up PR, a decision), record the defaults on the PR,
+  and for each one that promises work check that an open issue exists (search before you file). If none does,
+  file it: an engineering issue (phase and area labels, a link back to the merged PR) for build work, or a
+  `Decision:` issue in the approved format when it needs the human's word (for example a change to a shared
+  contract). Link it from the PR note and from the tracking issue, and tell the parent in a `NEED:` in the same
+  turn. Work that belongs in an open PR (a test for the next part of a stack) goes to the parent as a `NEED:`
+  naming the PR. Never write "I have asked" in a note before that `NEED:` is sent, and cite the issue that
+  really holds the work (check its number and state first).
 - **On anything else:** answer in the PR in plain words; change code only when asked, then say what changed.
 
 ## Delegate the liaison (keep the main agent's context clean)
