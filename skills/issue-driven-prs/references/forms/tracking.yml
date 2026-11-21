@@ -1,0 +1,34 @@
+name: Tracking
+description: A change that needs several pull requests (a theme branch or a stack). Lists one sub-issue per PR.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each PR closes its own sub-issue (a Change issue), never this one. Write the shared vocabulary here; each sub-issue has its own behaviors, why and impact.
+  - type: textarea
+    id: vocabulary
+    attributes:
+      label: Vocabulary
+      description: The principal term in one sentence, then the sub-terms all parts share.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan
+      description: One sub-issue per PR, in merge order.
+      placeholder: "- [ ] #<n> part 1\n- [ ] #<n> part 2"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+    validations:
+      required: true

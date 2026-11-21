@@ -1,5 +1,9 @@
 # Changelog — github-human-tasks
 
+## 1.9.5 — 2026-11-21
+- After a decision: the build work follows the `issue-driven-prs` skill when it is available (one line; triggers
+  and description unchanged).
+
 ## 1.9.4 — 2026-11-20
 - A stack top whose "Closes #N" is not registered after it retargets to the default branch: re-save its body
   unchanged (`gh pr view N --json body --jq .body > f && gh pr edit N --body-file f`), never altering the
