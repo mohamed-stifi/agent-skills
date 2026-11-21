@@ -1,5 +1,16 @@
 # Changelog — github-human-tasks
 
+## 2.0.0 — 2026-11-21
+- PR review mode (review sets, the PR watcher, merging, closing-keyword checks, defaults that promise work)
+  moved to `references/pr-review.md`; SKILL.md points to it and is 44% smaller (13,876 → about 7,800 chars).
+- The description names PR review sets and "give me PRs to review", so the skill triggers for them.
+- Each rule stated once: the post header and `MARK`, the tracking issue, search-before-create, the watcher
+  arguments (now defaults in the commands). **Report** is defined up front: a `NEED:` to the parent as the
+  liaison, otherwise a message to the user, so the PR rules work without a liaison.
+- "Keep this skill current" names the skills repo this folder comes from, not the project.
+- One project's history removed from the rules (the human's quote, PR numbers, "the parent authorised"); the
+  set size is "N, default 5". The rules themselves are unchanged.
+
 ## 1.10.0 — 2026-11-21
 - Watchers never lose a reply: `init` with an existing state file adopts label and state changes but keeps
   unmarked comments it never reported (both scripts), so SKILL.md's restart paragraph shrinks to one sentence.
