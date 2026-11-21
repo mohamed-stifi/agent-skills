@@ -10,6 +10,7 @@ mkdir -p "$T/bin"
 # --slurp or --jq prints each page's array back to back, `pr view` of a missing PR fails.
 cat > "$T/bin/gh" <<'EOF'
 #!/bin/sh
+echo "$*" >> "$STUB/calls"
 [ -f "$STUB/fail" ] && { echo "HTTP 401: Bad credentials (https://api.github.com/graphql)" >&2; exit 1; }
 case "$1 $2" in
   "issue list") cat "$STUB/issues.json" ;;
@@ -83,5 +84,9 @@ t=a_mistyped_extra_prs_number_is_refused_at_init; fresh $t
 echo 7 > "$STUB/prs.txt"; pr 7 ""
 out=$(EXTRA_PRS=99999 bash "$WP" "$ST" init 2>&1); code=$?
 [ "$code" = 1 ] && echo "$out" | grep -q '#99999' && ok $t || ko $t "exit $code: $out"
+
+t=the_watcher_follows_needs_human_by_default; fresh $t   # issue #14
+issue ""; out=$(env -u LABEL bash "$W" "$ST" init 2>&1)
+grep -qs -- "issue list .*--label needs:human" "$STUB/calls" && ok $t || ko $t "$out $(cat "$STUB/calls" 2>/dev/null)"
 
 echo "$pass passed, $fail failed"; [ "$fail" = 0 ]

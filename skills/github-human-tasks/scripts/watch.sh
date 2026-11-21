@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Watch the issues labelled LABEL until the human does something on one of them.
+# Watch the issues labelled LABEL (default "needs:human") until the human does something on one of them.
 #
-#   REPO=owner/name LABEL=task-to-<owner> MARK='<!-- proj-agent -->' watch.sh STATE.json init
-#   REPO=…          LABEL=…               MARK=…                      watch.sh STATE.json watch [minutes] [seconds]
+#   REPO=owner/name MARK='<!-- proj-agent -->' [LABEL=needs:human] watch.sh STATE.json init
+#   REPO=…          MARK=…                                         watch.sh STATE.json watch [minutes] [seconds]
 #
 # A comment counts as the human's when its body lacks MARK (the agent posts through the same GitHub
 # account, so the author can't tell them apart). Events end the watch (exit 0, printed as "EVENT …"):
@@ -13,7 +13,7 @@
 # Bounded: default 110 minutes, polling every 120 s; `watch 0` polls once.
 set -uo pipefail
 state=${1:?state file}; mode=${2:?init|watch}
-: "${LABEL:?set LABEL, e.g. task-to-<owner>}"; : "${MARK:?set MARK, e.g. <!-- proj-agent -->}"
+: "${MARK:?set MARK, e.g. <!-- proj-agent -->}"; LABEL=${LABEL:-needs:human}
 . "$(dirname "$0")/watch-lib.sh"
 need_repo
 export LABEL MARK
