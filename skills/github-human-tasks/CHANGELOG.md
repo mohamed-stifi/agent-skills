@@ -1,5 +1,15 @@
 # Changelog — github-human-tasks
 
+## 1.10.0 — 2026-11-21
+- Watchers never lose a reply: `init` with an existing state file adopts label and state changes but keeps
+  unmarked comments it never reported (both scripts), so SKILL.md's restart paragraph shrinks to one sentence.
+- `watch-pr.sh` reads line comments over several pages (`--paginate --jq '.[]'`; plain `--paginate` glued the
+  pages' arrays into invalid JSON), follows up to 500 labelled PRs (was gh's default 30), and refuses an
+  `EXTRA_PRS` number that is not a PR at `init`.
+- A window where every poll failed ends with `WATCH: every poll failed` and the error, exit 3, instead of
+  `WATCH: no change`. `watch 0` polls once. State files are written atomically.
+- Shared `scripts/watch-lib.sh`; `tests/watchers.sh` runs both watchers against a stub `gh` (CI runs it).
+
 ## 1.9.5 — 2026-11-21
 - After a decision: the build work follows the `issue-driven-prs` skill when it is available (one line; triggers
   and description unchanged).

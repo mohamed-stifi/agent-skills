@@ -5,47 +5,61 @@
 #   REPO=owner/name MARK='<!-- proj-agent -->' [LABEL=review:now] watch-pr.sh STATE.json init
 #   REPO=…          MARK=…                                          watch-pr.sh STATE.json watch [minutes] [seconds]
 #   EXTRA_PRS="70 89"  (optional, both modes): PR numbers followed whatever their state or label, for
-#   example the last merged ones, since the human often comments after a merge.
+#   example the last merged ones, since the human often comments after a merge. `init` refuses a
+#   number that is not a PR.
 #
 # Events (exit 0, printed as "EVENT …"): a new review of any state, a new unmarked PR comment or
 # inline review comment, a PR leaving the label (merged, closed or unlabelled), or a PR newly labelled.
-# A comment counts as the human's when its body lacks MARK. No event before the deadline:
-# "WATCH: no change". Every gh call is capped at 60 s; a failed poll is never an event.
+# A comment counts as the human's when its body lacks MARK. `init` with an existing state file keeps
+# unmarked comments and reviews that were never reported; delete the state file for a fresh start.
+# No event: "WATCH: no change" (exit 0). Every poll failed: "WATCH: every poll failed" (exit 3).
+# Default 100 minutes, polling every 90 s; `watch 0` polls once. Every gh call is capped at 60 s.
 set -uo pipefail
 state=${1:?state file}; mode=${2:?init|watch}
 : "${MARK:?set MARK, e.g. <!-- proj-agent -->}"; LABEL=${LABEL:-review:now}
-REPO=${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)}
-[ -n "$REPO" ] || { echo "set REPO=owner/name"; exit 2; }
+. "$(dirname "$0")/watch-lib.sh"
+need_repo
 export MARK LABEL
-cap() { perl -e 'alarm shift; exec @ARGV' 60 "$@"; }
-snap() { # prints a JSON list of {number,title,state,url,reviews,comments,inline}, one per labelled PR
-  local ns n pv il out="["; local first=1
-  ns=$(cap gh pr list -R "$REPO" --label "$LABEL" --state open --json number -q '.[].number' 2>/dev/null) || return 1
+snap() { # prints a JSON list of {number,title,state,url,reviews,comments,inline}, one per watched PR
+  local ns n out="[" first=1
+  ns=$(cap gh pr list -R "$REPO" --label "$LABEL" --state open --limit 500 --json number -q '.[].number') || return 1
   ns=$(printf '%s\n' $ns ${EXTRA_PRS:-} | grep -E '^[0-9]+$' | sort -un)
   for n in $ns; do
-    pv=$(cap gh pr view "$n" -R "$REPO" --json number,title,state,url,reviews,comments 2>/dev/null) || return 1
-    il=$(cap gh api "repos/$REPO/pulls/$n/comments" --paginate 2>/dev/null) || return 1
-    pv=$(python3 -c 'import json,sys; pv=json.loads(sys.argv[1]); pv["inline"]=json.loads(sys.argv[2] or "[]"); print(json.dumps(pv))' "$pv" "$il")
+    cap gh pr view "$n" -R "$REPO" --json number,title,state,url,reviews,comments > "$tmp.pv" || return 1
+    # --jq '.[]' prints one comment per line across all pages (plain --paginate glues pages' arrays together)
+    cap gh api "repos/$REPO/pulls/$n/comments" --paginate --jq '.[]' > "$tmp.il" || return 1
     [ $first = 1 ] && first=0 || out="$out,"
-    out="$out$pv"
+    out="$out$(python3 -c 'import json,sys
+pv = json.load(open(sys.argv[1]))
+pv["inline"] = [json.loads(l) for l in open(sys.argv[2]) if l.strip()]
+print(json.dumps(pv))' "$tmp.pv" "$tmp.il")" || return 1
   done
+  rm -f "$tmp.pv" "$tmp.il"
   echo "$out]"
 }
-compare() {
-  python3 - "$state" "$1" <<'PY'
+compare() { # $1 = init|watch, $2 = snapshot file
+  python3 - "$state" "$2" "$1" <<'PY'
 import json, os, sys
-state_path, snap_path = sys.argv[1], sys.argv[2]
+state_path, snap_path, mode = sys.argv[1:4]
 MARK, LABEL = os.environ["MARK"], os.environ["LABEL"]
 old = json.load(open(state_path)) if os.path.exists(state_path) else None
 cur = json.load(open(snap_path))
-def ids(pr):
-    seen = [ "r:"+str(r.get("id") or r.get("submittedAt")) for r in pr.get("reviews", []) ]
-    seen += [ "c:"+c["url"] for c in pr.get("comments", []) ]
-    seen += [ "i:"+str(c["id"]) for c in pr.get("inline", []) ]
-    return {"state": pr.get("state"), "seen": sorted(seen)}
-new = {str(pr["number"]): ids(pr) for pr in cur}
+def items(pr):  # (key, body) for every review, comment and line comment
+    for r in pr.get("reviews", []): yield "r:" + str(r.get("id") or r.get("submittedAt")), r.get("body") or ""
+    for c in pr.get("comments", []): yield "c:" + c["url"], c.get("body") or ""
+    for c in pr.get("inline", []): yield "i:" + str(c["id"]), c.get("body") or ""
+new, kept = {}, 0
+for pr in cur:
+    n, o = str(pr["number"]), (old or {}).get(str(pr["number"]))
+    keys = [k for k, _ in items(pr)]
+    if mode == "init" and o is not None:   # keep what the watcher never reported
+        seen = [k for k, b in items(pr) if k in o["seen"] or MARK in b]
+        kept += len(keys) - len(seen)
+    else:
+        seen = keys
+    new[n] = {"state": pr.get("state"), "seen": sorted(seen)}
 ev = []
-if old is not None:
+if mode == "watch" and old is not None:
     for n in sorted(set(old) - set(new), key=int):
         ev.append(f"EVENT #{n} no longer under '{LABEL}' (merged, closed or unlabelled)")
     for n in sorted(set(new) - set(old), key=int):
@@ -67,24 +81,22 @@ if old is not None:
             if "i:"+str(c["id"]) not in seen and MARK not in (c.get("body") or ""):
                 body = " ".join((c.get("body") or "").split())
                 ev.append(f"EVENT #{n} line comment on {c.get('path')}:{c.get('line') or c.get('original_line')} by {(c.get('user') or {}).get('login','?')}: {body[:600]}  {c.get('html_url','')}")
-json.dump(new, open(state_path, "w"))
-print("\n".join(ev))
+with open(state_path + ".tmp", "w") as f:
+    json.dump(new, f)
+os.replace(state_path + ".tmp", state_path)
+if mode == "init":
+    line = "watching " + (", ".join(f"#{n} ({len(v['seen'])} seen)" for n, v in sorted(new.items(), key=lambda kv: int(kv[0]))) or "no PR")
+    print(line + (f"; {kept} unreported comment(s) kept for the next watch" if kept else ""))
+else:
+    print("\n".join(ev))
 PY
 }
-tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
-if [ "$mode" = init ]; then
-  snap > "$tmp" && [ -s "$tmp" ] || { echo "init: gh failed"; exit 1; }
-  rm -f "$state"; compare "$tmp" >/dev/null
-  python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('watching', ', '.join('#'+n+' ('+str(len(v['seen']))+' seen)' for n,v in sorted(d.items(), key=lambda kv:int(kv[0]))) or 'no PR')" "$state"
-  exit 0
-fi
-minutes=${3:-100}; every=${4:-90}
-deadline=$(( $(date +%s) + minutes * 60 ))
-while [ "$(date +%s)" -lt "$deadline" ]; do
-  if snap > "$tmp" && [ -s "$tmp" ]; then
-    ev=$(compare "$tmp")
-    if [ -n "$ev" ]; then echo "$ev"; echo "WATCH: $(date -u +%H:%M:%S) events above"; exit 0; fi
-  fi
-  sleep "$every"
-done
-echo "WATCH: no change by $(date -u +%H:%M:%S)"; exit 0
+case "$mode" in
+  init)
+    for n in ${EXTRA_PRS:-}; do
+      cap gh pr view "$n" -R "$REPO" --json number >/dev/null 2>&1 || { echo "init: EXTRA_PRS: #$n is not a PR in $REPO"; exit 1; }
+    done
+    watch_main init ;;
+  watch) watch_main watch "${3:-100}" "${4:-90}" ;;
+  *) echo "mode must be init or watch"; exit 2 ;;
+esac
