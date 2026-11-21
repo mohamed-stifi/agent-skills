@@ -1,0 +1,3 @@
+# Working on GitHub: an issue before every PR, and the human's decisions and reviews as watched issues.
+issue-driven-prs
+github-human-tasks

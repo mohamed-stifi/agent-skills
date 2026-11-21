@@ -12,7 +12,8 @@ One repo = one source of truth: install by symlink and every agent updates with 
 | [video-style-extractor](skills/video-style-extractor/) | 1.0.0 | Example videos (links) → measured style guide (`style.md`) an agent can follow. | ffmpeg, uv |
 | [repo-walkthrough-video](skills/repo-walkthrough-video/) | 1.0.0 | Tests every function of a repo for real, then records a narrated, chaptered 1080p walkthrough. | macOS, vhs, ffmpeg, jq, Python+Pillow |
 | [product-promo-video](skills/product-promo-video/) | 1.1.0 | Product (link, repo or brief) → finished promo films: a ≤ 60 s story-driven 16:9 film + 15 s and 6 s cuts (or story, teaser, explainer, 9:16, 1:1), camera motion, UI drawn in code, the product's brand, voice-over, synthesized music and sound design, captions. Local & free. | node 18+, ffmpeg, uv, git |
-| [github-human-tasks](skills/github-human-tasks/) | 1.9.4 | Decisions and person-only tasks as watched GitHub issues: an approved format (words → story → what we found → what others do → choose), a 🤖 header plus marker, a watcher, and how to record a decision and close it via PR. Also PR review with the human: review sets of five, a PR watcher, merging on their word, and a liaison sub-agent. | gh, python3 |
+| [github-human-tasks](skills/github-human-tasks/) | 1.9.5 | Decisions and person-only tasks as watched GitHub issues: an approved format (words → story → what we found → what others do → choose), a 🤖 header plus marker, a watcher, and how to record a decision and close it via PR. Also PR review with the human: review sets of five, a PR watcher, merging on their word, and a liaison sub-agent. | gh, python3 |
+| [issue-driven-prs](skills/issue-driven-prs/) | 1.0.0 | Every PR starts from an issue written first: Vocabulary, Behaviors (Given / When / Then), Why, Impact. A tracking issue with one sub-issue per PR or stack layer, scenarios mapped to tests, stacks that close only their own issue, issue forms, a two-line AGENTS.md pointer. | gh |
 
 ## Bundles (skills that work together)
 
@@ -20,6 +21,7 @@ One repo = one source of truth: install by symlink and every agent updates with 
 |---|---|---|
 | [idea-to-video](bundles/idea-to-video.txt) | explainer-short, video-style-extractor | learn a style from examples, then make videos in it |
 | [video-all](bundles/video-all.txt) | all four video skills | everything video |
+| [github-workflow](bundles/github-workflow.txt) | issue-driven-prs, github-human-tasks | issues before PRs, and the human's decisions and reviews on GitHub |
 
 A bundle is just a text file listing skill names. Skills inside a bundle stay independent folders;
 they may mention each other by name, never by path.
