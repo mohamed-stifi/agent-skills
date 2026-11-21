@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.4"
+  version: "1.9.5"
   author: mohamed-stifi
 ---
 
@@ -85,6 +85,7 @@ Read the whole issue, then reply in the same issue, with the header and `MARK`:
 3. **Keep the issue open** until the implementing PR closes it: the PR body has `Closes #N` and cites the
    reply's link. A draft PR built as evidence becomes ready, its title loses any "decision pending" prefix,
    and it joins the normal merge order.
+   If the `issue-driven-prs` skill is available, the build work follows it: its change issue links this one.
 4. **Follow-ups:** a "later" part of the choice becomes its own issue, linked both ways.
 5. Update the tracking issue and your project memory.
 

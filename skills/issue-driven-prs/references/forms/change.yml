@@ -1,0 +1,38 @@
+name: Change
+description: Something to build, fix or change that fits in one pull request. Written before any code.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say what will change, why, and how we will know it works, before any code. The PR that does it says `Closes #<this issue>` and lists the scenarios it covers, each with its test. Bigger than one PR? Open a Tracking issue instead.
+  - type: textarea
+    id: vocabulary
+    attributes:
+      label: Vocabulary
+      description: The principal term in one sentence, then each sub-term it relies on. Reuse words the repo already defines.
+      placeholder: "- **<Principal term>**: <one sentence>.\n  - **<Sub-term>**: <one sentence>."
+    validations:
+      required: true
+  - type: textarea
+    id: behaviors
+    attributes:
+      label: Behaviors
+      description: One Given / When / Then scenario per behavior, failures and refusals included. Each becomes a test.
+      placeholder: "**Scenario: <name>**\n- Given <state>\n- When <action>\n- Then <observable result>"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The problem today, who has it, and what happens if nothing is done.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What changes and for whom, what deliberately does not, and any migration or risk.
+      placeholder: "- **Changes**: …\n- **Who**: …\n- **Not changed**: …"
+    validations:
+      required: true
