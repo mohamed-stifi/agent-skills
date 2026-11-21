@@ -1,8 +1,7 @@
 # Templates
 
 Plain words, short sections, a number to reply with. Write for a product owner who didn't build it.
-Every body and comment starts with the header line and contains the marker, then goes straight to the
-content: no apology or meta preamble.
+The header and marker rule for every post is in SKILL.md; the blocks below already start with both.
 
 ## Decision issue: title `Decision: <the question in a few words>`
 
@@ -55,7 +54,7 @@ Reply with the number.
 2. …
 
 ### When it's done
-Comment "done" here or close the issue. I'm watching it and will continue.
+Comment "done" here or close the issue. The build agent watches it and continues.
 ```
 
 ## Replies

@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route decisions and tasks only a person can do (accounts, payments, identity) to the human as GitHub issues, watch them, and act on their replies; also run PR review sets with them. Use when blocked on the human in a GitHub repo, when asked to "ask me in an issue", "watch my replies" or "give me PRs to review", when a task-to-<name> or review:now label is named, or when replying in such an issue.
 metadata:
-  version: "2.0.0"
+  version: "2.0.1"
   author: mohamed-stifi
 ---
 

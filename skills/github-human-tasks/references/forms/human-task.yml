@@ -1,5 +1,6 @@
 name: Task for a person
 description: Something only a person can do (an account, a payment, a machine outside the repo), as a step-by-step guide.
+title: "Task: "
 labels: ["needs:human", "task-to-OWNER"]
 body:
   - type: markdown
@@ -28,7 +29,7 @@ body:
   - type: textarea
     id: done
     attributes:
-      label: How to tell us it's done
-      placeholder: "Comment \"done\" here, or close the issue. The build agent watches this issue and continues."
+      label: When it's done
+      placeholder: "Comment \"done\" here or close the issue. The build agent watches it and continues."
     validations:
       required: true
