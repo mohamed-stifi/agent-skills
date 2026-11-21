@@ -9,3 +9,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash scripts/validate.sh
+      - name: skill tests
+        run: for t in skills/*/tests/*.sh; do [ -e "$t" ] || continue; echo "== $t"; bash "$t" || exit 1; done

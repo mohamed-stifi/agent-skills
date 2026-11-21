@@ -2,7 +2,7 @@
 name: github-human-tasks
 description: Route what only a person can decide or do to them through GitHub issues, watch those issues, and act on their replies, in a format they confirmed they understand. Use when an agent working in a GitHub repo is blocked on a product decision, an account or payment, or anything needing the human's identity; when the user says "ask me in an issue", "make it a GitHub issue", "watch my replies", or names a label like task-to-<name>; or when replying in such an issue.
 metadata:
-  version: "1.9.5"
+  version: "1.10.0"
   author: mohamed-stifi
 ---
 
@@ -59,11 +59,12 @@ REPO=… LABEL=… MARK=… bash SKILL/scripts/watch.sh STATE.json watch 110 120
 ```
 - **What it does:** it polls every labelled issue, open and closed. It exits on the first `EVENT`: an
   unmarked comment, a close or reopen, or a label added or removed. With no event it exits after the window
-  with `WATCH: no change`.
+  with `WATCH: no change`; exit 3 (`WATCH: every poll failed` and the error) means it is broken, not quiet.
 - **How to run it:** as a long background job (timeout above the window), never blocking on it. After you
   handle its events, start it again.
-- **After you change a label or state yourself, re-run `init`** before restarting the watcher. GitHub search
-  lags, so one harmless "no longer labelled" event can still appear: ignore it and restart.
+- **After you change a label or state yourself, re-run `init`:** it adopts your change and keeps any reply
+  the watcher has not reported yet, so restarting never loses one. GitHub search lags, so one harmless
+  "no longer labelled" event can still appear: ignore it and restart.
 
 ## Handle a reply
 Read the whole issue, then reply in the same issue, with the header and `MARK`:
@@ -103,13 +104,8 @@ which one must merge first when one is stacked on another:
 - **Watch it:** `REPO=… MARK=… bash SKILL/scripts/watch-pr.sh STATE.json init`, then `… watch 100 90` in the
   background. It follows every open PR carrying `review:now`, and exits on a review, an unmarked comment
   or line comment, a PR leaving or joining the label.
-- **Never lose the human's comment to a restart.** `watch-pr.sh … init` marks every comment that exists as
-  already seen, so an `init` run between the human's comment and the watcher's next poll swallows their
-  "merge". Adding PRs to `EXTRA_PRS` makes the next `watch` report them as "newly under review:now" even when
-  they are not labelled; that event is harmless, so read it and restart without `init`. If you must `init`
-  (state out of date), first list the human's comments newer than the last one you handled
-  (`gh pr view N --json comments`, comments without your marker) on every PR you track, and act on them.
-  After any restart, run that same listing once.
+- **Restarts keep the human's comments.** `init` keeps every unmarked comment the watcher has not reported
+  yet, so the next `watch` shows it; only deleting the state file starts fresh.
 - **Look ahead, but do not assign early.** While a set is under review, prepare the next one: pick it,
   trial-merge it against the default branch and the open set, run its checks, and write its guides, and hold
   them unposted. Do not label or assign it, so the human's list shows only what they are reviewing now. The moment
