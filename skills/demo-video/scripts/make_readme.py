@@ -25,7 +25,7 @@ for m in metas:
 
 (ROOT / "README.md").write_text(f"""# {title}
 
-A narrated, captioned walkthrough (1920×1080, H.264 + AAC). Every command shown is real.
+A narrated, captioned video (1920×1080, H.264 + AAC). Everything shown was really run.
 
 - **`{name}.mp4`**: the full video ({t / 60:.0f} min), with chapter markers and an English subtitle track
   (use your player's chapter and subtitle menus, e.g. QuickTime or VLC)
@@ -41,16 +41,16 @@ A narrated, captioned walkthrough (1920×1080, H.264 + AAC). Every command shown
 ## How it was made, and how to re-record a chapter
 
 Terminal scenes are recorded by [VHS](https://github.com/charmbracelet/vhs) on throwaway clones in `work/`
-(never on a working copy), the voice is macOS `say`, slides are drawn with Pillow, ffmpeg assembles it all.
+(never on a working copy), the voice is Kokoro (local, neural), slides are drawn with Pillow, ffmpeg assembles it.
 
 ```bash
 cd src
-python engine.py --dry --only 05     # run a chapter's commands in plain bash and print their output
-python engine.py --only 05           # re-record chapter 05 (needs vhs, ffmpeg, Pillow)
-python engine.py                     # rebuild what changed and re-assemble the full video
-python engine.py --only 05 --reuse-terms          # narration fix only: keep the terminal recordings
-VOICE="Ava (Premium)" python engine.py --force    # a nicer voice, once installed in System Settings
-python make_readme.py                # refresh this file
+bash run.sh engine.py --dry --only 05     # run a chapter's actions for real and print their output
+bash run.sh engine.py --only 05           # re-record chapter 05
+bash run.sh engine.py                     # rebuild what changed and re-assemble the full video
+bash run.sh engine.py --only 05 --reuse-terms   # narration fix only: keep the screen recordings
+VOICE=am_michael bash run.sh engine.py --force  # another Kokoro voice
+bash run.sh make_readme.py                # refresh this file
 ```
 
 - `src/script.py`: the words and the commands of every chapter (edit this)

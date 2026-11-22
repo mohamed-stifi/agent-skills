@@ -1,12 +1,13 @@
-"""Video engine: turns the chapter script (script.py, next to this file) into narrated, captioned 1080p MP4s.
+"""Video engine (demo-video skill): turns the chapter script (script.py, next to this file) into narrated, captioned
+1080p MP4s.
 
 Each segment is one of:
   card   - full-screen title card (Pillow), narrated
   slide  - full-screen slide: title + bullets and/or a row of boxes joined by arrows (Pillow), narrated
   term   - a real terminal session recorded by VHS (1920x900), framed with a header and a caption bar
 
-Every segment gets its own voice-over (macOS `say`); the picture is held on its last frame until the voice
-ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
+Every segment gets its own voice-over (Kokoro-82M, a local neural voice; or macOS `say`); the picture is held on its
+last frame until the voice ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
 chapter markers and a subtitle track.
 
     python engine.py                    # build everything missing or changed, then assemble
@@ -15,7 +16,9 @@ chapter markers and a subtitle track.
     python engine.py --force            # rebuild everything (e.g. after changing VOICE)
     python engine.py --reuse-terms      # keep recorded terminal clips, redo voice/frames (narration fixes)
 
-Env: VOICE (default Samantha), RATE (words per minute, default 172).
+Env: VOICE_ENGINE (kokoro | say, default kokoro), VOICE (default af_heart for kokoro, Samantha for say),
+     SPEED (kokoro speed, default 1.0), RATE (say words per minute, default 172),
+     KOKORO_MODELS (folder with kokoro-v1.0.onnx + voices-v1.0.bin, default ~/.cache/kokoro).
 
 script.py must define CHAPTERS and WORKDIRS; optional: ENV, TITLE, FOOTER, AUTHOR, PROMPT, OUTPUT_NAME, SPOKEN.
 """
@@ -41,8 +44,13 @@ CHAPTERS = ROOT / "chapters"
 W, H = 1920, 1080
 HEAD, TERM_H = 76, 900                                 # header bar, terminal height; caption bar = the rest
 CAP_Y = HEAD + TERM_H
-VOICE = os.environ.get("VOICE", "Samantha")
+VOICE_ENGINE = os.environ.get("VOICE_ENGINE", "kokoro")
+VOICE = os.environ.get("VOICE", "af_heart" if VOICE_ENGINE == "kokoro" else "Samantha")
+SPEED = float(os.environ.get("SPEED", "1.0"))
 RATE = os.environ.get("RATE", "172")
+KOKORO_MODELS = Path(os.environ.get("KOKORO_MODELS", str(Path.home() / ".cache" / "kokoro")))
+SENTENCE_GAP = 0.18                                    # seconds of silence between sentences
+_KOKORO = None
 FPS = 30
 REUSE_TERMS = False
 SCRIPT = None                                          # the imported script.py
@@ -251,16 +259,61 @@ BASE_SPOKEN = {
 }
 
 
-def say(text: str, out: Path) -> float:
-    aiff = out.with_suffix(".aiff")
-    spoken = text.replace("`", "")
+def spoken(text: str) -> str:
+    """What the voice should say: no backticks, acronyms and file names spelled for the ear."""
+    s = text.replace("`", "")
     for a, b in {**BASE_SPOKEN, **cfg("SPOKEN", {})}.items():
-        spoken = re.sub(a, b, spoken)
-    run(["say", "-v", VOICE, "-r", RATE, "-o", str(aiff), spoken])
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(aiff), "-af", "apad=pad_dur=0.6", "-ar", "48000", "-ac", "2",
+        s = re.sub(a, b, s)
+    return s
+
+
+def sentences(text: str) -> list[str]:
+    return [p.strip() for p in re.split(r"(?<=[.!?])\s+", text.strip()) if p.strip()]
+
+
+def kokoro():
+    global _KOKORO
+    if _KOKORO is None:
+        from kokoro_onnx import Kokoro
+        onnx, voices = KOKORO_MODELS / "kokoro-v1.0.onnx", KOKORO_MODELS / "voices-v1.0.bin"
+        if not (onnx.exists() and voices.exists()):
+            sys.exit(f"Kokoro model files are missing in {KOKORO_MODELS}: run the skill's scripts/setup.sh "
+                     "(or set KOKORO_MODELS, or VOICE_ENGINE=say)")
+        _KOKORO = Kokoro(str(onnx), str(voices))
+    return _KOKORO
+
+
+def voice(text: str, out: Path) -> tuple[float, list[tuple[float, float]]]:
+    """Narrate text into out (48 kHz stereo WAV). Returns the duration and each sentence's (start, end)."""
+    parts = sentences(text) or [text]
+    raw = out.with_suffix(".raw.wav")
+    if VOICE_ENGINE == "kokoro":
+        import numpy as np
+        import soundfile as sf
+        sr, chunks, times, t = 24000, [], [], 0.0
+        for p in parts:
+            audio, sr = kokoro().create(spoken(p), voice=VOICE, speed=SPEED, lang="en-us")
+            loud = np.where(np.abs(audio) > 0.012)[0]               # trim silence, keep 20 ms
+            if len(loud):
+                audio = audio[max(loud[0] - 480, 0): loud[-1] + 480]
+            d = len(audio) / sr
+            times.append((round(t, 3), round(t + d, 3)))
+            chunks += [audio, np.zeros(int(SENTENCE_GAP * sr), dtype=np.float32)]
+            t += d + SENTENCE_GAP
+        sf.write(raw, np.concatenate(chunks), sr)
+    else:                                                           # macOS say: one take, times by length
+        raw = out.with_suffix(".aiff")
+        run(["say", "-v", VOICE, "-r", RATE, "-o", str(raw), spoken(text)])
+        total, n = duration(raw), sum(len(p) for p in parts) or 1
+        times, t = [], 0.0
+        for p in parts:
+            d = total * len(p) / n
+            times.append((round(t, 3), round(t + d, 3)))
+            t += d
+    run(["ffmpeg", "-v", "error", "-y", "-i", str(raw), "-af", "apad=pad_dur=0.6", "-ar", "48000", "-ac", "2",
          str(out)])
-    aiff.unlink()
-    return duration(out)
+    raw.unlink()
+    return duration(out), times
 
 
 def q(text: str) -> str:
@@ -312,16 +365,16 @@ def tape_for(seg, clip: Path) -> str:
 def make_segment(seg, chap, idx: int, out: Path):
     tmp = BUILD / chap["num"] / f"{idx:02d}"
     tmp.mkdir(parents=True, exist_ok=True)
-    voice = tmp / "voice.wav"
-    vdur = say(seg["say"], voice)
+    voice_wav = tmp / "voice.wav"
+    vdur, _times = voice(seg["say"], voice_wav)
     if seg["type"] in ("card", "slide"):
         png = tmp / "pic.png"
         (picture_card if seg["type"] == "card" else picture_slide)(seg, chap, png)
         dur = max(vdur, seg.get("min", 0)) + 0.4
-        run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(png), "-i", str(voice),
+        run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(png), "-i", str(voice_wav),
              "-t", f"{dur:.2f}", "-vf", "format=yuv420p", "-c:v", "libx264", "-preset", "slow", "-crf", "16",
              "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-shortest", str(out)])
-        return dur
+        return dur, _times
     # terminal
     clip = tmp / "term.mp4"
     tape = tmp / "seg.tape"
@@ -340,10 +393,10 @@ def make_segment(seg, chap, idx: int, out: Path):
     dur = max(vdur, cdur) + 0.3
     vf = (f"[0:v]{speed}fps={FPS},pad={W}:{H}:0:{HEAD}:color={C['bg']},"
           f"tpad=stop_mode=clone:stop_duration={dur:.2f}[t];[t][1:v]overlay=0:0,format=yuv420p[v]")
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(clip), "-loop", "1", "-i", str(frame), "-i", str(voice),
+    run(["ffmpeg", "-v", "error", "-y", "-i", str(clip), "-loop", "1", "-i", str(frame), "-i", str(voice_wav),
          "-filter_complex", vf, "-map", "[v]", "-map", "2:a", "-af", "apad", "-t", f"{dur:.2f}",
          "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-c:a", "aac", "-b:a", "192k", str(out)])
-    return dur
+    return dur, _times
 
 
 def srt_time(t: float) -> str:
@@ -352,10 +405,20 @@ def srt_time(t: float) -> str:
     return f"{int(h):02d}:{int(m):02d}:{int(s):02d},{int((s % 1) * 1000):03d}"
 
 
-def subtitle_chunks(text: str, start: float, end: float):
-    """Split a narration into sentence chunks, timed by length."""
+def subtitle_chunks(text: str, start: float, end: float, times=None):
+    """Split a narration into sentence chunks: at the voice's real sentence times when known, else by length."""
     text = text.replace("`", "")
     parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", text) if p.strip()]
+    if times and len(times) == len(parts):
+        for (a, b), p in zip(times, parts):
+            pieces = textwrap.wrap(p, 110) if len(p) > 110 else [p]
+            n = sum(len(x) for x in pieces) or 1
+            t = start + a
+            for x in pieces:
+                d = (b - a) * len(x) / n
+                yield t, t + d, x
+                t += d
+        return
     chunks = []
     for p in parts:
         chunks += textwrap.wrap(p, 110) if len(p) > 110 else [p]
@@ -377,7 +440,7 @@ def build_chapter(chap, force=False):
     CHAPTERS.mkdir(exist_ok=True)
     out = CHAPTERS / f"{chap['num']}-{chap['slug']}.mp4"
     meta = BUILD / chap["num"] / "meta.json"
-    key = hashlib.sha256(json.dumps([chap, VOICE, RATE], sort_keys=True).encode()).hexdigest()
+    key = hashlib.sha256(json.dumps([chap, VOICE_ENGINE, VOICE, SPEED, RATE], sort_keys=True).encode()).hexdigest()
     if out.exists() and meta.exists() and json.loads(meta.read_text()).get("key") == key and not force:
         print(f"= {out.name} (unchanged)")
         return json.loads(meta.read_text())
@@ -388,9 +451,9 @@ def build_chapter(chap, force=False):
     for i, seg in enumerate(chap["segments"]):
         p = BUILD / chap["num"] / f"{i:02d}.mp4"
         print(f"  - {i:02d} {seg['type']:5} {seg.get('title') or seg.get('caption', '')[:70]}", flush=True)
-        d = make_segment(seg, chap, i, p)
+        d, times = make_segment(seg, chap, i, p)
         segs.append(p)
-        timeline.append({"start": t, "end": t + d, "say": seg["say"]})
+        timeline.append({"start": t, "end": t + d, "say": seg["say"], "times": times})
         t += d
     lst = BUILD / chap["num"] / "list.txt"
     lst.write_text("".join(f"file '{p}'\n" for p in segs))
@@ -414,7 +477,7 @@ def assemble(metas):
         ffmeta += ["[CHAPTER]", "TIMEBASE=1/1000", f"START={int(t0 * 1000)}",
                    f"END={int((t0 + m['duration']) * 1000)}", f"title={m['num']} {m['title']}"]
         for seg in m["timeline"]:
-            for a, b, c in subtitle_chunks(seg["say"], t0 + seg["start"], t0 + seg["end"]):
+            for a, b, c in subtitle_chunks(seg["say"], t0 + seg["start"], t0 + seg["end"], seg.get("times")):
                 srt.append(f"{n}\n{srt_time(a)} --> {srt_time(b)}\n{c}\n")
                 n += 1
         t0 += m["duration"]

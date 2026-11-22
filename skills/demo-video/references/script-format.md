@@ -29,7 +29,7 @@ else is optional.
 - `before` holds shell commands run (in `WORKDIRS["main"]`, with `ENV`) before recording or a dry run.
   Use it to reset state, start containers or trigger a pipeline. They are skipped with `--reuse-terms`.
   Their output is hidden, so a failing hook only shows up as odd output in the scenes. Dry-run first.
-- A chapter is rebuilt only when its dict, `VOICE` or `RATE` changes (a hash in `build/NN/meta.json`).
+- A chapter is rebuilt only when its dict or the voice settings (`VOICE_ENGINE`, `VOICE`, `SPEED`, `RATE`) change (a hash in `build/NN/meta.json`).
   Use `--force` to rebuild anyway, for example after the repo changed.
 
 ## Segments
@@ -90,10 +90,13 @@ prints such a line itself ends the wait early. Long commands are fine (timeout 6
 
 ## Narration style
 
-- Aim for about 150–170 words per minute at the default `RATE=172`. Most segments are 2–5 sentences.
+- The voice is Kokoro (`VOICE=af_heart`, `SPEED=1.0`; other voices: `am_michael`, `bf_emma`, …), about 150–170
+  words per minute. `VOICE_ENGINE=say` uses macOS `say` instead. Most segments are 2–5 sentences.
 - Open a chapter with *why* it exists, then *what to look at*, then *what it means*.
 - Name what is on screen: "Look at the skills: zero." If a command's output changes, update the words.
-- Be honest about failures: "This fails today, and here is why. It is in the findings at the end."
+- Be honest about failures: "This fails today, and here is why." (In a pilot they are the point; in a demo,
+  the user decides first.)
+- Match the audience: plain words for end users, internals for developers.
 - Spell acronyms the voice mangles, either in the text ("C L I") or through `SPOKEN`.
 
 ## The findings chapter
