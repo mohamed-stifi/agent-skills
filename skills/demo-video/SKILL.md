@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
   author: mohamed-stifi
 ---
 
@@ -63,19 +63,20 @@ Set up the video folder outside the repo (the user picks it; else `<parent-of-re
 
 ```bash
 bash SKILL/scripts/setup.sh            # tools, voice model (once), python env; says what to install
-mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,req.py,make_readme.py,agent.jq,run.sh} video/src/
+mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,req.py,make_readme.py,make_doc.py,agent.jq,run.sh} video/src/
 cp SKILL/scripts/script_template.py video/src/script.py
 ```
 
-`script.py` holds every word and every action; `engine.py` turns it into video. Read
-`SKILL/references/script-format.md` for the scene types and their fields, and the narration rules.
+Shape the chapters with the type's recipe in `SKILL/references/video-types.md`. `script.py` holds every word
+and every action; `engine.py` turns it into video. Read `SKILL/references/script-format.md` for the scene
+types (`browser`, `api`, `term`, `diagram`, `slide`, `card`) and the narration rules.
 
 ```bash
 cd video/src
 bash run.sh engine.py --dry            # runs every action for real, prints the output, makes no video
 bash run.sh engine.py --only 03        # record one chapter, then look at frames before the rest
 bash run.sh engine.py                  # everything missing or changed, then the full video
-bash run.sh make_readme.py
+bash run.sh make_readme.py && bash run.sh make_doc.py   # README index, and the companion doc
 ```
 
 Always dry-run first. Check a recorded chapter by reading frames
@@ -85,16 +86,20 @@ background; chapters are cached by a hash of their script, so re-runs rebuild on
 ## 6. Verify and hand over
 `ffprobe -v error -show_chapters -show_streams -of compact video/<name>.mp4` must show 1920×1080 h264, aac, a
 mov_text subtitle track and one marker per chapter; sample a few frames for overflow. Then give the user the
-paths (the MP4, `chapters/`, the `.srt`, the README), how to open it (QuickTime or VLC show chapters and
+paths (the MP4, `chapters/`, the `.srt`, the companion doc `<name>.md` with its screenshots, the README), how to open it (QuickTime or VLC show chapters and
 subtitles), what you found, and any service you left running with how to stop it.
 
 ## Output layout
 ```
 video/
-├── <name>.mp4        # chapters + subtitle track      ├── README.md   # chapter index, how to re-record
-├── <name>.srt        # the narration as subtitles     ├── src/        # script.py, engine.py, run.sh
-├── chapters/NN-slug.mp4                               ├── work/       # throwaway clone(s): every action runs here
-                                                       └── build/      # intermediate files
+├── <name>.mp4            # all chapters, with chapter markers and a subtitle track
+├── <name>.srt            # the narration as subtitles (also a transcript)
+├── <name>.md, doc/       # the companion doc and its screenshots
+├── chapters/NN-slug.mp4  # each chapter as a stand-alone clip
+├── README.md             # chapter index with start times, how to re-record
+├── src/                  # script.py (the words and actions), engine.py and helpers
+├── work/                 # throwaway clone(s): every action runs here
+└── build/                # intermediate files
 ```
 
 ## Pitfalls already solved

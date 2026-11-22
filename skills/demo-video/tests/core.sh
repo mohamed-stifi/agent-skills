@@ -5,7 +5,7 @@ set -uo pipefail
 SKILL=$(cd "$(dirname "$0")/.." && pwd); REPO=$(cd "$SKILL/../.." && pwd)
 T=$(mktemp -d "${TMPDIR:-/tmp}/dv-core.XXXXXX"); trap 'rm -rf "$T"' EXIT
 pass=0; fail=0; skip=0
-check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); fi; }
+check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); return 1; fi; }
 skipped() { echo "skip $1 ($2)"; skip=$((skip+1)); }
 S="$SKILL/SKILL.md"
 section() { sed -n "/^## $1/,/^## [0-9A-Z]/p" "$S"; }

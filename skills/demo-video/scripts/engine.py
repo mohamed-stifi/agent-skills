@@ -7,6 +7,7 @@ Each segment is one of:
   term   - a real terminal session recorded by VHS (1920x900), framed with a header and a caption bar
   browser - a real Chromium used like a person (Playwright, scripts/browser.py), framed the same way
   api    - real HTTP calls shown by `req` (request, status, response), then effect checks: a terminal scene
+  diagram - a slide of boxes and arrows that lights up the parts each sentence talks about, in time with it
 
 Every segment gets its own voice-over (Kokoro-82M, a local neural voice; or macOS `say`); the picture is held on its
 last frame until the voice ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
@@ -143,13 +144,17 @@ def picture_card(seg, chap, out: Path):
     im.save(out)
 
 
-def box(d, x, y, w, h, title, body, color):
-    d.rounded_rectangle([x, y, x + w, y + h], radius=22, fill=C["mantle"], outline=color, width=4)
-    d.text((x + 28, y + 24), title, font=font(40, "Bold"), fill=color)
+def box(d, x, y, w, h, title, body, color, dim=False):
+    if dim:                                     # a diagram part the narration is not on yet
+        color = C["surface"]
+    d.rounded_rectangle([x, y, x + w, y + h], radius=22, fill=C["mantle"] if not dim else C["bg"], outline=color,
+                        width=4 if dim else 7)
+    d.text((x + 28, y + 24), title, font=font(40, "Bold"), fill=color if not dim else C["overlay"])
     yy = y + 90
     for line in body:
         for wl in wrap(d, line, font(31), w - 56, mono=font(28, mono=True)):
-            rich(d, (x + 28, yy), wl, font(31), C["text"], mono=font(28, mono=True))
+            rich(d, (x + 28, yy), wl, font(31), C["text"] if not dim else C["overlay"],
+                 code_fill=None if not dim else C["overlay"], mono=font(28, mono=True))
             yy += 44
 
 
@@ -191,9 +196,11 @@ def picture_slide(seg, chap, out: Path):
             x = 96 + c * (bw + gap)
             yy = y + r * (bh + 60)
             col = C.get(b.get("color", ""), colors[i % len(colors)])
-            box(d, x, yy, bw, bh, b["title"], b.get("body", []), col)
+            lit = seg.get("lit")                # diagram: only these boxes are lit; None = all
+            box(d, x, yy, bw, bh, b["title"], b.get("body", []), col, dim=lit is not None and i not in lit)
             if c < per - 1 and i < len(boxes) - 1 and seg.get("arrows", True):
-                arrow(d, x + bw + 8, yy + bh // 2, x + bw + gap - 8, yy + bh // 2, C["overlay"])
+                on = lit is None or (i in lit and i + 1 in lit)
+                arrow(d, x + bw + 8, yy + bh // 2, x + bw + gap - 8, yy + bh // 2, C["overlay"] if on else C["surface"])
         y += rows * (bh + 60) + 10
     for b in seg.get("bullets", []):
         sub = b.startswith("  ")                # two leading spaces = sub-bullet
@@ -395,6 +402,24 @@ def make_segment(seg, chap, idx: int, out: Path):
     tmp.mkdir(parents=True, exist_ok=True)
     voice_wav = tmp / "voice.wav"
     vdur, _times = voice(seg["say"], voice_wav)
+    if seg["type"] == "diagram":                # one picture per sentence, each held while it is spoken
+        n = len(seg["boxes"])
+        steps = seg.get("steps") or [[min(k, n - 1)] for k in range(len(_times))]
+        total = max(vdur, seg.get("min", 0)) + 0.4
+        starts = [0.0] + [a for a, _ in _times[1:]]
+        lst = tmp / "lit.txt"
+        rows = []
+        for k, a in enumerate(starts):
+            png = tmp / f"lit-{k}.png"
+            picture_slide({**seg, "lit": set(steps[min(k, len(steps) - 1)])}, chap, png)
+            end = starts[k + 1] if k + 1 < len(starts) else total
+            rows += [f"file '{png}'", f"duration {end - a:.3f}"]
+        rows.append(f"file '{tmp / f'lit-{len(starts) - 1}.png'}'")   # concat needs the last file twice
+        lst.write_text("\n".join(rows) + "\n")
+        run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(voice_wav),
+             "-t", f"{total:.2f}", "-vf", f"fps={FPS},format=yuv420p", "-c:v", "libx264", "-preset", "slow",
+             "-crf", "16", "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", str(out)])
+        return total, _times
     if seg["type"] in ("card", "slide"):
         png = tmp / "pic.png"
         (picture_card if seg["type"] == "card" else picture_slide)(seg, chap, png)

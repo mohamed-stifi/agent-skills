@@ -1,5 +1,15 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 2.3.0 — 2026-11-22
+- `diagram` scenes: boxes and arrows that light up the parts each sentence names, in time with the voice (one
+  picture per sentence; `steps` picks the boxes lit per sentence, default box k in sentence k).
+- `scripts/make_doc.py` writes the companion doc `<name>.md` and `doc/` screenshots: one section per chapter
+  with its start time and clip, the narration as prose, commands in bash blocks, API calls and `req` effect
+  checks as curl, browser steps as numbered steps, a screenshot per scene.
+- `references/video-types.md`: the chapter shape of each video type (feature demo, tutorial, explainer, pilot,
+  project guide); SKILL.md points to it.
+- Tests: `check()` now returns failure, so a failing check prints its diagnostics.
+
 ## 2.2.0 — 2026-11-22
 - `api` scenes: real HTTP calls shown the way a developer reads them, through `scripts/req.py` (stdlib only):
   `→ METHOD path` and the body, `← status reason · time` (green, yellow or red), then the response, pretty and

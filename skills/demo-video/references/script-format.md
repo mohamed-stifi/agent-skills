@@ -61,6 +61,21 @@ Layout limits at 1920×1080:
 - Box body lines wrap inside the box. Long paths overflow, so split them across two body lines.
 - Colours: `blue mauve peach green teal yellow red sky`.
 
+### diagram: boxes that light up with the narration
+
+```python
+diagram("How a note is saved",
+        "The page sends the note. The API checks it and stores it. Then the audit log records the change.",
+        boxes=[{"title": "Page", "body": ["`index.html`"]},
+               {"title": "API", "body": ["`POST /api/notes`"]},
+               {"title": "Audit log", "body": ["`audit` table"]}],
+        steps=[[0], [0, 1], [1, 2]])     # boxes lit during sentence 1, 2, 3 (default: box k in sentence k)
+```
+
+Same layout fields as `slide` (`rows`, `box_h`, `arrows`, `note`). Lit boxes are bold and coloured, the others
+dimmed; an arrow lights when both its ends are lit. Each picture holds for exactly its sentence, because the
+voice is made sentence by sentence. One sentence per step: write the narration to match the boxes.
+
 ### term: a real terminal scene, recorded by VHS
 
 ```python

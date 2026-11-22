@@ -30,7 +30,7 @@ CHAPTERS = [
 EOF
 cd "$V/video/src"
 pass=0; fail=0
-check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); fi; }
+check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); return 1; fi; }
 dry=$(bash run.sh engine.py --dry 2>&1)
 check dry_run_runs_the_command_for_real 'echo "$dry" | grep -q "Hello, team!"'
 log=$(bash run.sh engine.py 2>&1); bash run.sh make_readme.py >/dev/null 2>&1
