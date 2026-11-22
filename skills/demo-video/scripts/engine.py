@@ -5,6 +5,7 @@ Each segment is one of:
   card   - full-screen title card (Pillow), narrated
   slide  - full-screen slide: title + bullets and/or a row of boxes joined by arrows (Pillow), narrated
   term   - a real terminal session recorded by VHS (1920x900), framed with a header and a caption bar
+  browser - a real Chromium used like a person (Playwright, scripts/browser.py), framed the same way
 
 Every segment gets its own voice-over (Kokoro-82M, a local neural voice; or macOS `say`); the picture is held on its
 last frame until the voice ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
@@ -375,13 +376,26 @@ def make_segment(seg, chap, idx: int, out: Path):
              "-t", f"{dur:.2f}", "-vf", "format=yuv420p", "-c:v", "libx264", "-preset", "slow", "-crf", "16",
              "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-shortest", str(out)])
         return dur, _times
-    # terminal
-    clip = tmp / "term.mp4"
-    tape = tmp / "seg.tape"
-    if not (REUSE_TERMS and clip.exists()):     # --reuse-terms: keep the recording, redo voice and frame
-        tape.write_text(tape_for(seg, clip))
-        run(["vhs", str(tape)], cwd=tmp)        # VHS wants a bare Output file name: run it in the folder
-    cdur = duration(clip)
+    trim = 0.0
+    if seg["type"] == "browser":
+        clip, meta = tmp / "screen.webm", tmp / "browser.json"
+        if not (REUSE_TERMS and clip.exists() and meta.exists()):
+            scene = tmp / "scene.json"
+            scene.write_text(json.dumps({"url": seg["url"], "steps": seg.get("steps", []), "width": W,
+                                         "height": TERM_H}))
+            outp = run([sys.executable, str(Path(__file__).with_name("browser.py")), "record", str(scene), str(clip)])
+            res = json.loads(outp.strip().splitlines()[-1])
+            if not res.get("ok"):
+                sys.exit(f"browser scene failed in chapter {chap['num']}:\n{outp}")
+            meta.write_text(json.dumps(res))
+        trim = json.loads(meta.read_text()).get("trim", 0.0)
+    else:                                       # terminal
+        clip = tmp / "term.mp4"
+        tape = tmp / "seg.tape"
+        if not (REUSE_TERMS and clip.exists()):     # --reuse-terms: keep the recording, redo voice and frame
+            tape.write_text(tape_for(seg, clip))
+            run(["vhs", str(tape)], cwd=tmp)        # VHS wants a bare Output file name: run it in the folder
+    cdur = duration(clip) - trim
     frame = tmp / "frame.png"
     speed = ""
     if seg.get("speedup") and cdur > max(vdur, 25) * 1.2:
@@ -393,7 +407,8 @@ def make_segment(seg, chap, idx: int, out: Path):
     dur = max(vdur, cdur) + 0.3
     vf = (f"[0:v]{speed}fps={FPS},pad={W}:{H}:0:{HEAD}:color={C['bg']},"
           f"tpad=stop_mode=clone:stop_duration={dur:.2f}[t];[t][1:v]overlay=0:0,format=yuv420p[v]")
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(clip), "-loop", "1", "-i", str(frame), "-i", str(voice_wav),
+    run(["ffmpeg", "-v", "error", "-y", "-ss", f"{trim:.2f}", "-i", str(clip), "-loop", "1", "-i", str(frame),
+         "-i", str(voice_wav),
          "-filter_complex", vf, "-map", "[v]", "-map", "2:a", "-af", "apad", "-t", f"{dur:.2f}",
          "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-c:a", "aac", "-b:a", "192k", str(out)])
     return dur, _times
@@ -497,6 +512,15 @@ def dry(chaps):
         print(f"\n######## {chap['num']} {chap['title']}")
         run_hooks(chap)
         for seg in chap["segments"]:
+            if seg["type"] == "browser":
+                print(f"$ browser {seg['url']}")
+                scene = BUILD / "dry-scene.json"
+                BUILD.mkdir(exist_ok=True)
+                scene.write_text(json.dumps({"url": seg["url"], "steps": seg.get("steps", [])}))
+                r = subprocess.run([sys.executable, str(Path(__file__).with_name("browser.py")), "dry", str(scene)],
+                                   capture_output=True, text=True)
+                print((r.stdout + r.stderr).rstrip())
+                continue
             if seg["type"] != "term":
                 continue
             env = {**os.environ, **cfg("ENV", {}), **seg.get("env", {})}
@@ -519,7 +543,7 @@ if __name__ == "__main__":
     ap.add_argument("--dry", action="store_true", help="run the terminal commands in bash, print output, no video")
     ap.add_argument("--force", action="store_true", help="rebuild even unchanged chapters")
     ap.add_argument("--no-assemble", action="store_true")
-    ap.add_argument("--reuse-terms", action="store_true", help="keep recorded terminal scenes, redo voice/frames")
+    ap.add_argument("--reuse-terms", action="store_true", help="keep recorded terminal and browser scenes, redo voice/frames")
     a = ap.parse_args()
     REUSE_TERMS = a.reuse_terms
     sys.path.insert(0, str(Path(__file__).parent))

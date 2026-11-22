@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   author: mohamed-stifi
 ---
 
@@ -49,8 +49,9 @@ provided, say how the video will work around it (a local model, sample data, ski
 
 ## 4. Pilot run: use it for real
 Clone the repo into `work/` (never the user's working copy; mention their uncommitted changes and leave them
-alone), start what the subject needs, and use it as the audience would: the UI as a user, the API with real
-requests, the CLI in a terminal. Write down the exact steps that show each feature well, with short output.
+alone), start what the subject needs, and use it as the audience would: the UI as a user in a real browser
+(`browser` scenes: the cursor, the typing and the clicks on screen), the API with real requests, the CLI in a
+terminal. Write down the exact steps that show each feature well, with short output.
 - **Environment problems** (a wrong default path, a missing env var): fix them in the clone and show the fix
   in the video, because viewers will hit them too.
 - **Real bugs:** in a pilot, they are the content. In a demo or tutorial, tell the user before recording and
@@ -61,7 +62,7 @@ Set up the video folder outside the repo (the user picks it; else `<parent-of-re
 
 ```bash
 bash SKILL/scripts/setup.sh            # tools, voice model (once), python env; says what to install
-mkdir -p video/src && cp SKILL/scripts/{engine.py,make_readme.py,agent.jq,run.sh} video/src/
+mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,make_readme.py,agent.jq,run.sh} video/src/
 cp SKILL/scripts/script_template.py video/src/script.py
 ```
 
@@ -101,6 +102,8 @@ video/
 - **VHS:** 15 fps (50 drops frames), `Output` is a bare file name (the engine runs vhs in the folder), strings
   take no escapes (the engine's `q()` picks a delimiter), and `Wait` needs the prompt to end in `$`: a command
   whose last line ends in `$` or `>` ends the wait early, so add a `pause`.
+- **A dry run really acts:** it types, clicks and saves. Reset the app's state in the chapter's `before`
+  hook so the recording starts clean.
 - **Long-running scenes** (an agent, a pipeline): `"speedup": True` compresses the clip to the narration and
   stamps "sped up ×N"; say so in the narration.
 - **Wait loops:** `pgrep -f` matches itself; wait on a PID or a file.

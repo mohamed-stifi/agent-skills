@@ -24,6 +24,11 @@ def term(caption, say, cmds, **kw):
     return {"type": "term", "caption": caption, "say": say, "cmds": cmds, **kw}
 
 
+def browser(caption, say, url, steps, **kw):
+    """A real browser used like a person; steps are listed in references/script-format.md."""
+    return {"type": "browser", "caption": caption, "say": say, "url": url, "steps": steps, **kw}
+
+
 def slide(title, say, **kw):
     return {"type": "slide", "title": title, "say": say, **kw}
 
