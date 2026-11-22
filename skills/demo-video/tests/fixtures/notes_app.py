@@ -26,7 +26,7 @@ header{background:#3b5bdb;color:#fff;padding:22px 48px;font-size:28px;font-weigh
 main{max-width:900px;margin:40px auto;padding:0 24px}
 form{display:flex;gap:12px;margin-bottom:28px}
 input{flex:1;font-size:22px;padding:14px 16px;border:2px solid #ccd3e0;border-radius:10px}
-button{font-size:22px;padding:14px 26px;border:0;border-radius:10px;background:#3b5bdb;color:#fff;cursor:pointer}
+button{font-size:22px;padding:14px 26px;border:0;border-radius:10px;background:#e8590c;color:#fff;cursor:pointer}
 li{background:#fff;border-radius:10px;padding:16px 20px;margin:10px 0;list-style:none;box-shadow:0 1px 3px #0002}
 ul{padding:0} .err{color:#c92a2a;margin:-12px 0 20px} small{color:#7a8396;margin-left:12px}
 </style></head><body><header>Notes</header><main>

@@ -8,7 +8,12 @@ A step is one action (a selector is any Playwright selector: CSS, `text=Save`, `
   {"goto": "http://…"}                 {"click": sel}                 {"hover": sel}
   {"type": "hello", "into": sel}       {"press": "Enter"}             {"scroll": sel} or {"scroll": 600}
   {"wait": sel} / {"wait": {"text": "Saved"}} / {"wait": 2}          {"pause": 1.5}
-  {"highlight": sel, "seconds": 2}     {"expect": "text the page must show"}
+  {"highlight": sel, "seconds": 2}     {"expect": "text the page must show"}   (shows ✓ and the text)
+Pointing (drawn only when recording; the dry run checks their targets):
+  {"zoom": sel, "scale": 2} / {"zoom": false}      the page scales up around sel (sharp: done by the browser)
+  {"callout": "2-5 words", "at": sel, "icon": "⚡", "tone": "info|warn|ok", "seconds": 3}   (no "at": top)
+  {"arrow": sel, "from": "left|right|top|bottom", "seconds": 2}     {"underline": sel, "seconds": 2}
+  {"blur": sel}                                      blur a secret for the rest of the scene (also in dry runs)
 Each step may add "pause": seconds to wait after it (default 0.6). A visible cursor glides to every target and
 ripples on a click; typing is one key at a time, so the viewer can follow.
 """
@@ -40,10 +45,58 @@ CURSOR_JS = """
     document.documentElement.appendChild(r);
     requestAnimationFrame(() => { r.style.transform = 'scale(1.8)'; r.style.opacity = '0'; });
     setTimeout(() => r.remove(), 600); };
-  window.__dvBox = (x, y, w, h, ms) => { const b = document.createElement('div');
-    Object.assign(b.style, {position:'fixed', left:(x-8)+'px', top:(y-8)+'px', width:(w+16)+'px', height:(h+16)+'px',
-      border:'4px solid #f59f00', borderRadius:'10px', boxShadow:'0 0 0 9999px #0003', zIndex:2147483645, pointerEvents:'none'});
-    document.documentElement.appendChild(b); setTimeout(() => b.remove(), ms); };
+  const layer = (el, ms) => { el.style.pointerEvents = 'none'; el.style.zIndex = 2147483645;
+    document.documentElement.appendChild(el); if (ms) setTimeout(() => { el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300); }, ms); return el; };
+  // highlight frame: glowing cyan rim with corner brackets, the rest dimmed a little
+  window.__dvBox = (x, y, w, h, ms) => { const b = document.createElement('div'), p = 10;
+    Object.assign(b.style, {position:'fixed', left:(x-p)+'px', top:(y-p)+'px', width:(w+2*p)+'px', height:(h+2*p)+'px',
+      border:'2px solid #bbffff', borderRadius:'8px', boxShadow:'0 0 18px 4px #71bcd9, 0 0 0 9999px #0000002e',
+      transition:'opacity .3s'});
+    for (const [v, hz] of [['top','left'],['top','right'],['bottom','left'],['bottom','right']]) {
+      const c = document.createElement('div');
+      Object.assign(c.style, {position:'absolute', width:'22px', height:'22px', [v]:'-8px', [hz]:'-8px',
+        ['border' + v[0].toUpperCase() + v.slice(1)]:'5px solid #bbffff', ['border' + hz[0].toUpperCase() + hz.slice(1)]:'5px solid #bbffff'});
+      b.appendChild(c); }
+    layer(b, ms); };
+  // callout pill: icon + a few bold words, rim coloured by tone, popped above (or below) the target
+  window.__dvCallout = (text, icon, tone, box, ms) => { const rim = {info:'#71bcd9', warn:'#f59f00', ok:'#40c057'}[tone] || '#71bcd9';
+    const b = document.createElement('div'); b.textContent = (icon ? icon + '  ' : '') + text;
+    Object.assign(b.style, {position:'fixed', padding:'14px 26px', borderRadius:'999px', background:'#161b2e', color:'#fff',
+      font:'700 30px -apple-system, system-ui, sans-serif', letterSpacing:'.3px', whiteSpace:'nowrap',
+      border:'2px solid ' + rim, boxShadow:'0 0 22px 2px ' + rim + ', 0 8px 24px #0008', opacity:'0',
+      transform:'scale(.85)', transition:'opacity .25s, transform .25s'});
+    layer(b, ms); const r = b.getBoundingClientRect(), W = innerWidth;
+    let x = box ? box.x + box.width / 2 - r.width / 2 : W / 2 - r.width / 2;
+    let y = box ? (box.y - r.height - 26 > 10 ? box.y - r.height - 26 : box.y + box.height + 26) : 36;
+    b.style.left = Math.max(16, Math.min(W - r.width - 16, x)) + 'px'; b.style.top = y + 'px';
+    requestAnimationFrame(() => { b.style.opacity = '1'; b.style.transform = 'scale(1)'; }); };
+  // arrow: a lavender arrow pointing at the target from one side
+  window.__dvArrow = (box, from, ms) => { const L = 150, cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    const end = {left:[box.x - 10, cy], right:[box.x + box.width + 10, cy], top:[cx, box.y - 10], bottom:[cx, box.y + box.height + 10]}[from];
+    const d = {left:[-1,0], right:[1,0], top:[0,-1], bottom:[0,1]}[from], st = [end[0] + d[0]*L, end[1] + d[1]*L];
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    Object.assign(svg.style, {position:'fixed', left:'0', top:'0', width:'100vw', height:'100vh', overflow:'visible', transition:'opacity .3s'});
+    const a = Math.atan2(end[1] - st[1], end[0] - st[0]), k = 22, s1 = a - 0.5, s2 = a + 0.5;
+    svg.innerHTML = `<g stroke="#c9a9f4" stroke-width="7" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 2px 4px #0007)">
+      <line x1="${st[0]}" y1="${st[1]}" x2="${end[0]}" y2="${end[1]}"/>
+      <polyline points="${end[0]-k*Math.cos(s1)},${end[1]-k*Math.sin(s1)} ${end[0]},${end[1]} ${end[0]-k*Math.cos(s2)},${end[1]-k*Math.sin(s2)}"/></g>`;
+    layer(svg, ms); };
+  // underline: a lavender bar drawn left to right under the target
+  window.__dvUnderline = (box, ms) => { const u = document.createElement('div');
+    Object.assign(u.style, {position:'fixed', left:box.x + 'px', top:(box.y + box.height + 6) + 'px', width:'0px', height:'6px',
+      borderRadius:'3px', background:'#c9a9f4', boxShadow:'0 0 10px #c9a9f4', transition:'width .5s ease, opacity .3s'});
+    layer(u, ms); requestAnimationFrame(() => { u.style.width = box.width + 'px'; }); };
+  // zoom: scale the page (not the overlays) so the target sits near the centre, clamped to the page edges
+  window.__dvZoom = (box, s, animate) => { const b = document.body;
+    b.style.transition = animate ? 'transform .8s cubic-bezier(.4,0,.2,1)' : 'none';
+    if (!box) { b.style.transform = 'none'; return; }
+    b.style.transform = 'none'; const r = b.getBoundingClientRect(), W = innerWidth, H = innerHeight;
+    const bw = Math.max(r.width, W), bh = Math.max(r.height, H);
+    let tx = W / 2 - r.left - s * (box.x + box.width / 2 - r.left), ty = H / 2 - r.top - s * (box.y + box.height / 2 - r.top);
+    tx = Math.min(-r.left, Math.max(W - r.left - s * bw, tx)); ty = Math.min(-r.top, Math.max(H - r.top - s * bh, ty));
+    b.style.transformOrigin = '0 0'; void b.offsetWidth;
+    b.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`; };
 })();
 """
 
@@ -115,8 +168,44 @@ def do(page, step, show):
             page.wait_for_timeout(ms)
         return f"highlight {step['highlight']}"
     if "expect" in step:
-        page.get_by_text(step["expect"]).first.wait_for(state="visible", timeout=15000)
+        loc = page.get_by_text(step["expect"]).first
+        loc.wait_for(state="visible", timeout=15000)
+        if show:                                   # the proof, on screen: a check mark next to what was found
+            page.evaluate("([t, b]) => window.__dvCallout(t, '✓', 'ok', b, 1800)", [step["expect"], loc.bounding_box()])
+            page.wait_for_timeout(1800)
         return f"expect {step['expect']!r}"
+    if "zoom" in step:
+        if step["zoom"] in (False, None, "out"):
+            page.evaluate("(a) => window.__dvZoom(null, 1, a)", show)
+            page.wait_for_timeout(900 if show else 50)
+            return "zoom out"
+        page.evaluate("(a) => window.__dvZoom(null, 1, false)", False)     # measure the target unzoomed
+        _, _, _, b = target(page, step["zoom"])
+        page.evaluate("([b, s, a]) => window.__dvZoom(b, s, a)", [b, step.get("scale", 2), show])
+        page.wait_for_timeout(900 if show else 50)
+        return f"zoom ×{step.get('scale', 2)} on {step['zoom']}"
+    if "callout" in step:
+        b = target(page, step["at"])[3] if step.get("at") else None
+        ms = int(step.get("seconds", 3) * 1000)
+        if show:
+            page.evaluate("([t, i, k, b, ms]) => window.__dvCallout(t, i, k, b, ms)",
+                          [step["callout"], step.get("icon", ""), step.get("tone", "info"), b, ms])
+            page.wait_for_timeout(ms)
+        return f"callout {step['callout']!r}" + (f" at {step['at']}" if step.get("at") else "")
+    if "arrow" in step or "underline" in step:
+        kind = "arrow" if "arrow" in step else "underline"
+        _, x, y, b = target(page, step[kind])
+        ms = int(step.get("seconds", 2) * 1000)
+        if show:
+            if kind == "arrow":
+                page.evaluate("([b, f, ms]) => window.__dvArrow(b, f, ms)", [b, step.get("from", "left"), ms])
+            else:
+                page.evaluate("([b, ms]) => window.__dvUnderline(b, ms)", [b, ms])
+            page.wait_for_timeout(ms)
+        return f"{kind} {step[kind]}"
+    if "blur" in step:
+        target(page, step["blur"])[0].evaluate("e => { e.style.filter = 'blur(9px)'; }")
+        return f"blur {step['blur']}"
     if "pause" in step:
         page.wait_for_timeout(int(step["pause"] * 1000) if show else 0)
         return f"pause {step['pause']}"
