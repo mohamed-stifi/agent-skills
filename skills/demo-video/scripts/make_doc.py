@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BUILD, DOC = ROOT / "build", ROOT / "doc"
 sys.path.insert(0, str(Path(__file__).parent))
 import script as S  # noqa: E402
+from engine import number_steps  # noqa: E402   (same "Step k of N" text as the video)
 
 name = getattr(S, "OUTPUT_NAME", "walkthrough")
 title = getattr(S, "TITLE", "A guided video")
@@ -49,7 +50,12 @@ def browser_steps(seg):
         elif "type" in st: out.append(f"Type “{st['type']}”" + (f" into `{st['into']}`." if st.get("into") else "."))
         elif "press" in st: out.append(f"Press `{st['press']}`.")
         elif "scroll" in st: out.append(f"Scroll to `{st['scroll']}`." if isinstance(st["scroll"], str) else "Scroll down.")
-        elif "expect" in st: out.append(f"Check that the page shows “{st['expect']}”.")
+        elif "expect" in st: out.append(f"You should see “{st['expect']}”.")
+        elif "callout" in st:
+            mark = "⚠️ **Careful:** " if st.get("tone") == "warn" else (st.get("icon", "") + " ").lstrip()
+            out.append(f"{mark}{st['callout']}" + ("" if st['callout'].endswith((".", "!", "?")) else "."))
+        elif "arrow" in st or "underline" in st: out.append(f"Look at `{st.get('arrow') or st.get('underline')}`.")
+        elif "blur" in st: out.append(f"(`{st['blur']}` holds a secret: it is blurred in the video; never share it.)")
         elif "highlight" in st: out.append(f"Look at `{st['highlight']}`.")
         elif "wait" in st and not isinstance(st["wait"], (int, float)): out.append(f"Wait for `{st['wait']}`.")
     return out
@@ -87,6 +93,14 @@ def req_to_curl(seg, line):
 def section(seg):
     lines = []
     t = seg["type"]
+    if seg.get("step"):
+        lines.append(f"### {seg['step']}")
+    if t == "section":
+        lines.append(f"**{(seg.get('icon', '') + ' ').lstrip()}{seg['title']}**")
+    if t == "concept":
+        if seg.get("title"):
+            lines.append(f"**{seg['title']}**")
+        lines += [f"- {(x.get('icon', '') + ' ').lstrip()}**{x['title']}**: {x.get('sub', '')}" for x in seg["tiles"]]
     if t == "card":
         lines.append(f"**{seg['title']}**" + (f": {seg['subtitle']}" if seg.get("subtitle") else ""))
     if t in ("slide", "diagram"):
@@ -110,7 +124,7 @@ def section(seg):
 metas = {m["num"]: m for m in (json.loads(p.read_text()) for p in BUILD.glob("*/meta.json"))}
 out, t0 = [f"# {title}", "", f"The written companion of `{name}.mp4`: the same chapters and steps, to follow at your own "
            "pace or copy from. Each chapter links its clip in `chapters/`.", ""], 0.0
-for chap in S.CHAPTERS:
+for chap in number_steps(S.CHAPTERS):
     m = metas.get(chap["num"])
     start = f" ({clock(t0)})" if m else ""
     out += [f"## {chap['num']} {chap['title']}{start}", ""]

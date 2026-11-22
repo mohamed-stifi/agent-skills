@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "2.3.0"
+  version: "2.4.0"
   author: mohamed-stifi
 ---
 
@@ -67,7 +67,10 @@ mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,req.py,make_readme.
 cp SKILL/scripts/script_template.py video/src/script.py
 ```
 
-Shape the chapters with the type's recipe in `SKILL/references/video-types.md`. `script.py` holds every word
+Shape the chapters with the type's recipe and follow its script rules in `SKILL/references/video-types.md`.
+**Point where to look** in every scene: zoom on the field being used, highlight or arrow the button, a callout
+for the key fact or warning, a ✓ when a step worked, numbered step badges and a section card between steps
+(`script-format.md` lists them). `script.py` holds every word
 and every action; `engine.py` turns it into video. Read `SKILL/references/script-format.md` for the scene
 types (`browser`, `api`, `term`, `diagram`, `slide`, `card`) and the narration rules.
 

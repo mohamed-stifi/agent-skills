@@ -8,6 +8,10 @@ Each segment is one of:
   browser - a real Chromium used like a person (Playwright, scripts/browser.py), framed the same way
   api    - real HTTP calls shown by `req` (request, status, response), then effect checks: a terminal scene
   diagram - a slide of boxes and arrows that lights up the parts each sentence talks about, in time with it
+  section - a short card between steps: a gradient and one centred pill (icon + a few words)
+  concept - two or three glowing tiles (icon, caps title, subtitle), optionally joined by "+", for "what is X"
+A segment's `step` shows as a pill top right; `step="#Connect Claude"` is numbered across the whole video:
+"Step 3 of 5 · Connect Claude".
 
 Every segment gets its own voice-over (Kokoro-82M, a local neural voice; or macOS `say`); the picture is held on its
 last frame until the voice ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
@@ -71,6 +75,112 @@ FONT_MONO = ["/System/Library/Fonts/SFNSMono.ttf", "/System/Library/Fonts/Menlo.
 
 def cfg(name, default):
     return getattr(SCRIPT, name, default)
+
+
+FONT_ICON = ["/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/Apple Symbols.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+
+
+def icon_font(ch: str, size: int) -> ImageFont.FreeTypeFont:
+    """The first font that has a glyph for this icon (⚡ ⚙ ⚠ ✓ ★ { } ⬇ …)."""
+    for p in FONT_ICON:
+        if os.path.exists(p):
+            f = ImageFont.truetype(p, size)
+            a, z = (Image.new("L", (size * 2, size * 2)) for _ in range(2))
+            ImageDraw.Draw(a).text((4, 4), ch, font=f, fill=255)
+            ImageDraw.Draw(z).text((4, 4), "\uffff", font=f, fill=255)       # the font's "missing" box
+            if a.getbbox() and a.tobytes() != z.tobytes():
+                return f
+    return font(size, "Bold")
+
+
+def number_steps(chaps):
+    """`step="#label"` -> "Step k of N · label", counted over the whole video (so the badge text is in each
+    chapter's cache key)."""
+    marked = [(ci, si) for ci, c in enumerate(chaps) for si, sg in enumerate(c["segments"])
+              if str(sg.get("step", "")).startswith("#")]
+    out = json.loads(json.dumps(chaps))
+    for k, (ci, si) in enumerate(marked, 1):
+        sg = out[ci]["segments"][si]
+        sg["step"] = f"Step {k} of {len(marked)} · {sg['step'][1:].strip()}"
+    return out
+
+
+def gradient(color: str) -> Image.Image:
+    """A dark radial gradient around a soft glow of `color`, like a section backdrop."""
+    import numpy as np
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    dist = np.sqrt(((xx - W * 0.42) / W) ** 2 + ((yy - H * 0.4) / H) ** 2) / 0.75
+    t = np.clip(dist, 0, 1)[..., None]
+    c = np.array(Image.new("RGB", (1, 1), color).getpixel((0, 0)), dtype=np.float32)
+    edge = np.array([8, 10, 20], dtype=np.float32)
+    return Image.fromarray((c * (1 - t) * 0.85 + edge * t).astype("uint8"), "RGB")
+
+
+def glow_rounded(im, box, radius, rim, width=3, blur=18):
+    """A rounded panel with a soft glow of `rim` around it."""
+    from PIL import ImageFilter
+    halo = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(halo).rounded_rectangle(box, radius=radius, outline=rim, width=width + 6)
+    im.alpha_composite(halo.filter(ImageFilter.GaussianBlur(blur)))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle(box, radius=radius, fill=(16, 22, 42, 235), outline=rim, width=width)
+    return d
+
+
+SECTION_COLORS = {"blue": "#2650c8", "orange": "#c2611a", "green": "#2b8a3e", "purple": "#7048e8", "teal": "#1c7e86"}
+
+
+def picture_section(seg, chap, out: Path):
+    im = gradient(SECTION_COLORS.get(seg.get("color", "blue"), seg.get("color", "#2650c8"))).convert("RGBA")
+    icon, text = seg.get("icon", ""), seg["title"]
+    ft = font(54, "Bold")
+    d = ImageDraw.Draw(im)
+    fi = icon_font(icon, 50) if icon else None
+    iw = d.textlength(icon, font=fi) + 26 if icon else 0
+    tw = iw + d.textlength(text, font=ft)
+    x0, y0 = (W - tw) // 2 - 48, H // 2 - 56
+    d = glow_rounded(im, [x0, y0, x0 + tw + 96, y0 + 112], 56, "#f5a524")
+    if icon:
+        d.text((x0 + 48, y0 + 26), icon, font=fi, fill="#ffd43b")
+    d.text((x0 + 48 + iw, y0 + 22), text, font=ft, fill="#ffffff")
+    if seg.get("kicker"):
+        k = seg["kicker"].upper()
+        d.text(((W - d.textlength(k, font=font(30, "Semibold"))) // 2, y0 - 70), k, font=font(30, "Semibold"),
+               fill="#c9d4ff")
+    im.convert("RGB").save(out)
+
+
+def picture_concept(seg, chap, out: Path):
+    tiles, join = seg["tiles"], seg.get("join", "")
+    im = gradient(SECTION_COLORS.get(seg.get("color", "blue"), seg.get("color", "#2650c8"))).convert("RGBA")
+    d = ImageDraw.Draw(im)
+    if seg.get("title"):
+        d.text(((W - d.textlength(seg["title"], font=font(56, "Bold"))) // 2, 110), seg["title"],
+               font=font(56, "Bold"), fill="#ffffff")
+    n, tw, th, gap = len(tiles), 520, 400, 150 if join else 70
+    x = (W - (n * tw + (n - 1) * gap)) // 2
+    y = (H - th) // 2 + (30 if seg.get("title") else 0)
+    for i, t in enumerate(tiles):
+        rim = t.get("rim", ["#5c8dff", "#71bcd9", "#b197fc"][i % 3])
+        d = glow_rounded(im, [x, y, x + tw, y + th], 34, rim, width=2, blur=22)
+        if t.get("icon"):
+            fi = icon_font(t["icon"], 110)
+            d.text((x + (tw - d.textlength(t["icon"], font=fi)) // 2, y + 50), t["icon"], font=fi,
+                   fill=t.get("icon_color", "#ffd43b" if i % 2 else "#a5d8ff"))
+        ty = y + 205
+        for line in wrap(d, t["title"].upper(), font(40, "Bold"), tw - 60)[:2]:
+            d.text((x + (tw - d.textlength(line, font=font(40, "Bold"))) // 2, ty), line, font=font(40, "Bold"),
+                   fill="#ffffff")
+            ty += 52
+        for line in wrap(d, t.get("sub", ""), font(28), tw - 70)[:3]:
+            d.text((x + (tw - d.textlength(line, font=font(28))) // 2, ty + 8), line, font=font(28), fill="#c3cbe6")
+            ty += 38
+        if join and i < n - 1:
+            d.text((x + tw + (gap - d.textlength(join, font=font(80, "Bold"))) // 2, y + th // 2 - 52), join,
+                   font=font(80, "Bold"), fill="#c3cbe6")
+        x += tw + gap
+    im.convert("RGB").save(out)
 
 
 def font(size: int, weight: str = "Regular", mono: bool = False) -> ImageFont.FreeTypeFont:
@@ -167,15 +277,20 @@ def arrow(d, x1, y1, x2, y2, color):
     d.polygon([(x2, y2), p1, p2], fill=color)
 
 
-def header(d, chap):
+def header(d, chap, seg=None):
     d.rectangle([0, 0, W, HEAD], fill=C["mantle"])
     d.text((40, 20), f"{chap['num']}  {chap['title']}", font=font(30, "Semibold"), fill=C["blue"])
+    step = (seg or {}).get("step", "")
+    if step:                                    # the step badge, top right
+        tw = d.textlength(step, font=font(28, "Semibold"))
+        d.rounded_rectangle([W - tw - 80, 14, W - 36, 62], radius=24, fill=C["blue"])
+        d.text((W - tw - 58, 20), step, font=font(28, "Semibold"), fill=C["crust"])
 
 
 def picture_slide(seg, chap, out: Path):
     im = Image.new("RGB", (W, H), C["bg"])
     d = ImageDraw.Draw(im)
-    header(d, chap)
+    header(d, chap, seg)
     d.text((96, 120), seg["title"], font=font(64, "Bold"), fill=C["text"])
     y = 240
     boxes = seg.get("boxes")
@@ -221,12 +336,7 @@ def picture_frame(seg, chap, out: Path):
     """Transparent overlay for a terminal segment: header bar on top (+ step pill), caption bar at the bottom."""
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    header(d, chap)
-    step = seg.get("step", "")
-    if step:
-        tw = d.textlength(step, font=font(26, "Medium"))
-        d.rounded_rectangle([W - tw - 76, 16, W - 36, 60], radius=12, fill=C["surface"])
-        d.text((W - tw - 56, 22), step, font=font(26, "Medium"), fill=C["text"])
+    header(d, chap, seg)
     d.rectangle([0, CAP_Y, W, H], fill=C["crust"])
     d.rectangle([0, CAP_Y, 10, H], fill=C["yellow"])
     cap = seg.get("caption", "")
@@ -420,10 +530,11 @@ def make_segment(seg, chap, idx: int, out: Path):
              "-t", f"{total:.2f}", "-vf", f"fps={FPS},format=yuv420p", "-c:v", "libx264", "-preset", "slow",
              "-crf", "16", "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", str(out)])
         return total, _times
-    if seg["type"] in ("card", "slide"):
+    if seg["type"] in ("card", "slide", "section", "concept"):
         png = tmp / "pic.png"
-        (picture_card if seg["type"] == "card" else picture_slide)(seg, chap, png)
-        dur = max(vdur, seg.get("min", 0)) + 0.4
+        {"card": picture_card, "slide": picture_slide, "section": picture_section,
+         "concept": picture_concept}[seg["type"]](seg, chap, png)
+        dur = max(vdur, seg.get("min", 2.5 if seg["type"] == "section" else 0)) + 0.4
         run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(png), "-i", str(voice_wav),
              "-t", f"{dur:.2f}", "-vf", "format=yuv420p", "-c:v", "libx264", "-preset", "slow", "-crf", "16",
              "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-shortest", str(out)])
@@ -600,7 +711,7 @@ if __name__ == "__main__":
     REUSE_TERMS = a.reuse_terms
     sys.path.insert(0, str(Path(__file__).parent))
     import script as SCRIPT  # noqa: E402
-    chaps = [c for c in SCRIPT.CHAPTERS if not a.only or c["num"] in a.only]
+    chaps = [c for c in number_steps(SCRIPT.CHAPTERS) if not a.only or c["num"] in a.only]
     if a.dry:
         dry(chaps)
         sys.exit()

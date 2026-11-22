@@ -1,5 +1,17 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 2.4.0 — 2026-11-22
+- Point where to look, from a style study of the user's reference videos: browser steps `zoom` (the page scales
+  up around a target, sharp, then back; clicks still land), `callout` (a pill with an icon and a few words,
+  `info`/`warn`/`ok`), `arrow`, `underline`, `blur` (secrets), and a ✓ callout when an `expect` passes. The
+  `highlight` frame is restyled: a cyan glow with corner brackets.
+- `step="#label"` is numbered across the whole video: "Step 3 of 5 · label", in the video and the doc.
+- `section` cards (a gradient and one pill, between steps) and `concept` tiles (icon, caps title, subtitle,
+  optionally joined by "+"); icons from Menlo / Apple Symbols / DejaVu Sans.
+- `references/video-types.md`: 14 script rules for every guide (numbered steps aloud, exact labels as
+  imperatives, a proof per step, warnings when they apply, terms defined on first use, …).
+- The companion doc shows step badges, warnings, blurred-secret notes, "You should see …", sections and tiles.
+
 ## 2.3.0 — 2026-11-22
 - `diagram` scenes: boxes and arrows that light up the parts each sentence names, in time with the voice (one
   picture per sentence; `steps` picks the boxes lit per sentence, default box k in sentence k).

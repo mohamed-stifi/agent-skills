@@ -76,6 +76,33 @@ Same layout fields as `slide` (`rows`, `box_h`, `arrows`, `note`). Lit boxes are
 dimmed; an arrow lights when both its ends are lit. Each picture holds for exactly its sentence, because the
 voice is made sentence by sentence. One sentence per step: write the narration to match the boxes.
 
+### section: a short card between steps
+
+```python
+{"type": "section", "title": "Install the gateway", "icon": "⬇", "kicker": "Step 2", "color": "blue",
+ "say": "Step two: install the gateway."}
+```
+
+A gradient (`blue`, `orange`, `green`, `purple`, `teal` or a hex colour) and one centred pill; at least 2.5 s.
+Use it between steps or before a new part, not as a slide of text.
+
+### concept: tiles for "what is X" and "A + B"
+
+```python
+{"type": "concept", "title": "Two pieces", "join": "+",
+ "tiles": [{"icon": "⚙", "title": "Hidden setting", "sub": "inside the desktop app"},
+           {"icon": "⚡", "title": "One free tool", "sub": "routes every request to a free model"}],
+ "say": "Two pieces make it work: a hidden setting, plus one free tool."}
+```
+
+One to three tiles (icon, caps title, a short subtitle). Icons that render: ⚡ ⚙ ⚠ ✓ ★ { } ⬇ (and more in
+Menlo / Apple Symbols / DejaVu Sans). Prefer this to a bullet slide when introducing parts.
+
+### Numbered steps
+
+`step="#Connect Claude"` on any segment shows a badge top right, numbered over the whole video:
+`Step 3 of 5 · Connect Claude`. A `step` without `#` is shown as written.
+
 ### term: a real terminal scene, recorded by VHS
 
 ```python
@@ -128,6 +155,20 @@ browser("Caption: the one-line point",
 | `{"highlight": sel, "seconds": 2}` | an orange frame around it, the rest dimmed |
 | `{"expect": "text"}` | the page must show this text (a check, also in the dry run) |
 | `{"pause": 1.5}` | hold still |
+
+**Point where to look** (drawn only when recording; the dry run checks their targets):
+
+| Step | Does |
+|---|---|
+| `{"zoom": sel, "scale": 2}` / `{"zoom": False}` | the page scales up around the target (sharp: the browser redraws it), then back; clicks still land |
+| `{"callout": "2-5 words", "at": sel, "icon": "⚡", "tone": "info", "seconds": 3}` | a pill next to the target (no `at`: at the top); tones `info` (cyan), `warn` (amber), `ok` (green) |
+| `{"arrow": sel, "from": "left", "seconds": 2}` | a lavender arrow pointing at the target from `left`, `right`, `top` or `bottom` |
+| `{"underline": sel, "seconds": 2}` | a lavender bar drawn under the target |
+| `{"blur": sel}` | blur a secret for the rest of the scene (also in the dry run) |
+
+`highlight` draws a glowing frame with corner brackets and dims the rest; a passing `expect` shows a green
+✓ pill with the text it found, the on-screen proof that the step worked. Typical order for one action:
+zoom in → highlight or arrow → act (type, click) → expect (✓) → zoom out.
 
 Every step waits 0.6 s after it (`"pause": N` on the step changes that). The page is 1920×900, like a
 terminal scene. The engine trims the blank start and holds the last frame until the narration ends.

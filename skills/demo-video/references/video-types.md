@@ -4,6 +4,22 @@ Pick the type from the request (SKILL.md, step 1), then shape the chapters here.
 cut what doesn't help this audience, never pad to a length. Each chapter is one idea and also works as a
 stand-alone clip, so open each with one sentence of context.
 
+## Script rules for every guide (from the user's reference videos)
+1. Name the subject and what the viewer will be able to do in the first sentence.
+2. Number the steps aloud and on screen (`step="#…"`), one goal per step, a `section` card before each.
+3. Say every action as an imperative with the exact label or command: "Click **Add key**", "Run `make up`".
+4. Say where to look before it appears ("Look at the bottom: …"), and point at it (zoom, highlight, arrow).
+5. Define each new term in one plain sentence the first time it is used, with an analogy for non-experts.
+6. End each step with proof that it worked, shown and said (`expect` → ✓, or the API's 201, the new row).
+7. Give a warning at the moment it applies (a `warn` callout), not in a list at the end.
+8. Read numbers, addresses and names exactly as they are on screen.
+9. Keep one real running example (one project, one record, one request) through the whole video.
+10. For "how it works": the whole picture first (`diagram` or `concept`), then each part running.
+11. Before the end, state the limits and the usual failure causes, each with its fix.
+12. End on the result in its real place (the page, the PR, the file) and one line on what to do next.
+13. Never show or say a secret's value: `blur` it and say it is hidden.
+14. Keep sentences short (about 15 words); one action per sentence in tutorials.
+
 Scenes: `browser` for anything with a UI, `api` for services and endpoints, `term` for CLIs, logs and
 databases, `diagram` for how parts fit, `slide`/`card` for words. Prefer showing over telling: a slide only
 where nothing can be shown.

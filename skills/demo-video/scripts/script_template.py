@@ -40,6 +40,16 @@ def diagram(title, say, boxes, steps=None, **kw):
     return {"type": "diagram", "title": title, "say": say, "boxes": boxes, "steps": steps, **kw}
 
 
+def section(title, say, icon="", **kw):
+    """A short card between steps: gradient + one pill. kw: kicker, color."""
+    return {"type": "section", "title": title, "say": say, "icon": icon, **kw}
+
+
+def concept(say, tiles, title="", join="", **kw):
+    """1-3 tiles {"icon", "title", "sub"} for "what is X" / "A + B" moments."""
+    return {"type": "concept", "say": say, "tiles": tiles, "title": title, "join": join, **kw}
+
+
 def slide(title, say, **kw):
     return {"type": "slide", "title": title, "say": say, **kw}
 
