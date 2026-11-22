@@ -1,5 +1,5 @@
-# Every video skill: shorts from ideas, product promo films, repo walkthroughs.
+# Every video skill: shorts from ideas, product promo films, demos and tutorials of a repo.
 explainer-short
 video-style-extractor
-repo-walkthrough-video
+demo-video
 product-promo-video

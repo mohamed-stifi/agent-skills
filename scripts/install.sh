@@ -52,6 +52,12 @@ done
 
 for d in ${dirs[@]+"${dirs[@]}"}; do
   mkdir -p "$d"
+  # a link into this repo whose skill no longer exists (renamed or removed) is stale: remove it
+  for l in "$d"/*; do
+    if [ -L "$l" ] && [ ! -e "$l" ]; then
+      case "$(readlink "$l")" in "$REPO"/skills/*) rm -f "$l"; echo "GONE $l (its skill was renamed or removed)" ;; esac
+    fi
+  done
   for s in "${skills[@]}"; do
     dest="$d/$s"
     if [ -e "$dest" ] || [ -L "$dest" ]; then

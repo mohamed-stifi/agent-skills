@@ -1,0 +1,114 @@
+---
+name: demo-video
+description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
+compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
+metadata:
+  version: "2.0.0"
+  author: mohamed-stifi
+---
+
+# Demo video
+
+The user has a repo (built by an agent, open source, or from their team) and wants to *understand and show*
+it: how to run it, how to use each feature, how it works. You make the video an engineer would record after
+building the thing: you use it for real first, then show it step by step, worded for whoever will watch.
+`SKILL` = this folder.
+
+## 1. Read the request
+Take three things from the user's words, and ask one short question only when one of them is unclear:
+- **Subject:** one feature ("the `--audit` flag"), a service ("the audit service"), a group of parts (the UI
+  and its APIs), or the whole project.
+- **Video type:**
+
+  | They say… | Type | Shape |
+  |---|---|---|
+  | "demo", "show the feature", "for the PR" | feature demo | the problem, then the feature used end to end on real data, then the result |
+  | "tutorial", "how to use", "step by step", "onboarding" | tutorial | prerequisites, install, first use, each task in order, troubleshooting; every step on screen |
+  | "explain", "how it works" | explainer | the parts and the flow as diagrams, each followed by a live demo of that part |
+  | "pilot", "test it", "is it working", "QA" | pilot | what was tested, how, what works and what is broken, as proof |
+  | "the whole project", "everything" | project guide | the big picture, then one chapter per feature (each also a stand-alone clip), then findings |
+
+- **Audience:** teammates, end users, new developers, a reviewer, a manager. It sets the words (no jargon for
+  end users, internals for developers) and the depth. Unstated: the user and their team.
+
+Length follows the content, never a target: two minutes for one flag, an hour or more for a large project.
+
+## 2. Map the repo (the feature map)
+Read the README, docs and ADRs, the entry points (UI routes and pages, the API routes or OpenAPI spec, every
+CLI `--help`), `docker-compose`/Makefile/CI, the env vars and the tests. Write the **feature map**: each
+feature or service, how to start it, how its user reaches it (page, endpoint, command), and what it needs.
+- **Whole project or several parts:** show the map and a chapter outline (one line each), and wait for the
+  user's go before recording.
+- **One feature:** say the plan in three lines and go on.
+
+## 3. Ask for the hands-on needs, once, in the chat
+List everything only the user can give, in one checklist, before you try anything: API keys and secrets
+(they go in a git-ignored file in the clone, never on screen), logins and accounts, paid services, a device or
+a machine, an approval, real data. Wait for the answers. Never invent a secret; if something can't be
+provided, say how the video will work around it (a local model, sample data, skipping that part on screen).
+
+## 4. Pilot run: use it for real
+Clone the repo into `work/` (never the user's working copy; mention their uncommitted changes and leave them
+alone), start what the subject needs, and use it as the audience would: the UI as a user, the API with real
+requests, the CLI in a terminal. Write down the exact steps that show each feature well, with short output.
+- **Environment problems** (a wrong default path, a missing env var): fix them in the clone and show the fix
+  in the video, because viewers will hit them too.
+- **Real bugs:** in a pilot, they are the content. In a demo or tutorial, tell the user before recording and
+  ask: show it, work around it, or fix it first.
+
+## 5. Write the script, dry-run, record
+Set up the video folder outside the repo (the user picks it; else `<parent-of-repo>/video/`):
+
+```bash
+bash SKILL/scripts/setup.sh            # tools, voice model (once), python env; says what to install
+mkdir -p video/src && cp SKILL/scripts/{engine.py,make_readme.py,agent.jq,run.sh} video/src/
+cp SKILL/scripts/script_template.py video/src/script.py
+```
+
+`script.py` holds every word and every action; `engine.py` turns it into video. Read
+`SKILL/references/script-format.md` for the scene types and their fields, and the narration rules.
+
+```bash
+cd video/src
+bash run.sh engine.py --dry            # runs every action for real, prints the output, makes no video
+bash run.sh engine.py --only 03        # record one chapter, then look at frames before the rest
+bash run.sh engine.py                  # everything missing or changed, then the full video
+bash run.sh make_readme.py
+```
+
+Always dry-run first. Check a recorded chapter by reading frames
+(`ffmpeg -v error -ss 20 -i chapters/03-*.mp4 -frames:v 1 build/check.png`). A long build runs in the
+background; chapters are cached by a hash of their script, so re-runs rebuild only what changed.
+
+## 6. Verify and hand over
+`ffprobe -v error -show_chapters -show_streams -of compact video/<name>.mp4` must show 1920×1080 h264, aac, a
+mov_text subtitle track and one marker per chapter; sample a few frames for overflow. Then give the user the
+paths (the MP4, `chapters/`, the `.srt`, the README), how to open it (QuickTime or VLC show chapters and
+subtitles), what you found, and any service you left running with how to stop it.
+
+## Output layout
+```
+video/
+├── <name>.mp4        # chapters + subtitle track      ├── README.md   # chapter index, how to re-record
+├── <name>.srt        # the narration as subtitles     ├── src/        # script.py, engine.py, run.sh
+├── chapters/NN-slug.mp4                               ├── work/       # throwaway clone(s): every action runs here
+                                                       └── build/      # intermediate files
+```
+
+## Pitfalls already solved
+- **Sandboxed shells:** vhs, Docker, uv caches and the voice often fail under a command sandbox ("Operation not
+  permitted"); run them outside it. `open` is blocked too: give the user the command.
+- **VHS:** 15 fps (50 drops frames), `Output` is a bare file name (the engine runs vhs in the folder), strings
+  take no escapes (the engine's `q()` picks a delimiter), and `Wait` needs the prompt to end in `$`: a command
+  whose last line ends in `$` or `>` ends the wait early, so add a `pause`.
+- **Long-running scenes** (an agent, a pipeline): `"speedup": True` compresses the clip to the narration and
+  stamps "sped up ×N"; say so in the narration.
+- **Wait loops:** `pgrep -f` matches itself; wait on a PID or a file.
+- **Before-hooks** that break things on purpose keep their undo in the same chapter, so rebuilding one chapter
+  never leaves the system broken.
+
+## Showing an AI agent at work
+If the repo builds an agent, show it working on a real, injected problem: run it headless with stream-json and
+format it with `agent.jq` (one line per tool call, then the answer), in a `speedup` scene, and reset the fault
+in the same chapter:
+`claude -p "<question>" --output-format stream-json --verbose | jq -rj -f video/src/agent.jq`

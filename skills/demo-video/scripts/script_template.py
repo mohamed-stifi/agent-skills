@@ -1,5 +1,5 @@
-"""The walkthrough: chapters -> segments. Edit the words or the commands here, then
-`python engine.py --dry --only NN` (check the commands) and `python engine.py --only NN` (record).
+"""The video: chapters -> segments. Edit the words or the commands here, then
+`bash run.sh engine.py --dry --only NN` (check the actions) and `bash run.sh engine.py --only NN` (record).
 
 Every terminal command is real and runs in a throwaway clone of the repo (work/), never in a working copy.
 See <skill>/references/script-format.md for every field.
