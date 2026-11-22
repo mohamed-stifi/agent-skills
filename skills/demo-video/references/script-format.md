@@ -88,6 +88,39 @@ have no escapes. Move such a command into a small script file.
 Waiting: the engine waits until the last line ends in `$` or `>` (the prompt). A command that
 prints such a line itself ends the wait early. Long commands are fine (timeout 600 s).
 
+### browser: a real browser used like a person (Playwright)
+
+```python
+browser("Caption: the one-line point",
+        "Narration: what the viewer should look at.",
+        "http://127.0.0.1:8000/",                       # the page it opens first
+        [{"type": "Ship the audit report", "into": "#text"},   # glide there, click, type key by key
+         {"click": "text=Save"},                       # any Playwright selector: CSS, text=…, role=…
+         {"expect": "Ship the audit report"},          # fails the dry run if the page never shows it
+         {"highlight": "li", "seconds": 2}],           # frame an element so the viewer looks there
+        step="step 2")
+```
+
+| Step | Does |
+|---|---|
+| `{"goto": url}` | open another page and wait for it to settle |
+| `{"click": sel}` | glide the cursor there, ripple, click |
+| `{"hover": sel}` | glide the cursor there (menus, tooltips) |
+| `{"type": "text", "into": sel}` | click the field, clear it, type key by key (`"delay"`: ms per key, default 55) |
+| `{"press": "Enter"}` | press a key or chord (`"Meta+K"`) |
+| `{"scroll": sel}` / `{"scroll": 600}` | bring an element into view / scroll by pixels |
+| `{"wait": sel}` / `{"wait": {"text": "Done"}}` / `{"wait": 2}` | until visible / seconds |
+| `{"highlight": sel, "seconds": 2}` | an orange frame around it, the rest dimmed |
+| `{"expect": "text"}` | the page must show this text (a check, also in the dry run) |
+| `{"pause": 1.5}` | hold still |
+
+Every step waits 0.6 s after it (`"pause": N` on the step changes that). The page is 1920×900, like a
+terminal scene. The engine trims the blank start and holds the last frame until the narration ends.
+
+**A dry run is real.** `--dry` runs every step in a headless browser, so a note it saves is saved. Reset the
+app's state in the chapter's `before` hook (restart it, reset its database), so the recording starts clean.
+A failing step stops the scene and prints its number, the step, the page URL and the reason.
+
 ## Narration style
 
 - The voice is Kokoro (`VOICE=af_heart`, `SPEED=1.0`; other voices: `am_michael`, `bf_emma`, …), about 150–170

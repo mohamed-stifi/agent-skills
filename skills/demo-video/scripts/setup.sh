@@ -36,4 +36,8 @@ if command -v uv >/dev/null && ((!check)); then
   bash "$HERE/run.sh" -c "import PIL, kokoro_onnx, soundfile" && echo "ok   python env (Pillow, kokoro-onnx, soundfile)" \
     || { echo "FAILED to prepare the python env (see the error above)"; bad=1; }
 fi
+if command -v uv >/dev/null && ((!check)); then      # the browser for `browser` scenes (~100 MB, once)
+  bash "$HERE/run.sh" -m playwright install chromium >/dev/null && echo "ok   browser (Playwright Chromium)" \
+    || { echo "FAILED to install the Playwright browser"; bad=1; }
+fi
 exit "$bad"

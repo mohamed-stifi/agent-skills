@@ -1,5 +1,14 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 2.1.0 — 2026-11-22
+- `browser` scenes: a real Chromium (Playwright, `scripts/browser.py`) uses the app like a person: a visible
+  cursor glides to each target and ripples on a click, typing is key by key, `highlight` frames an element.
+  Steps: goto, click, hover, type, press, scroll, wait, highlight, expect, pause. Framed like terminal scenes;
+  the blank start is trimmed and the last frame holds until the narration ends.
+- `--dry` runs every browser step headless and stops at the first failing step with its number, the step, the
+  URL and the reason. A dry run really acts, so reset the app's state in the chapter's `before` hook.
+- `setup.sh` installs the Playwright browser; `run.sh` adds Playwright.
+
 ## 2.0.0 — 2026-11-22
 - Renamed from `repo-walkthrough-video` and rebuilt around the request: the agent reads the subject (a feature,
   a service, several parts, the whole project), the video type (feature demo, tutorial, explainer, pilot,
