@@ -14,7 +14,7 @@ app() { python3 "$SKILL/tests/fixtures/notes_app.py" "$PORT" & APP=$!; sleep 1; 
 trap 'kill $APP 2>/dev/null; wait $APP 2>/dev/null; rm -rf "$V"' EXIT
 mkdir -p "$V/video/src" && cp "$SKILL"/scripts/{engine.py,browser.py,make_readme.py,run.sh} "$V/video/src/"
 pass=0; fail=0
-check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); fi; }
+check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); return 1; fi; }
 script() { # $1 = steps (python list), $2 = narration
 cat > "$V/video/src/script.py" <<EOF
 WORKDIRS = {"main": "$V"}

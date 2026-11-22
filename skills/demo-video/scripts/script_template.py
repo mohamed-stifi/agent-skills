@@ -34,6 +34,12 @@ def api(caption, say, base, calls, then=(), **kw):
     return {"type": "api", "caption": caption, "say": say, "base": base, "calls": calls, "then": list(then), **kw}
 
 
+def diagram(title, say, boxes, steps=None, **kw):
+    """Boxes and arrows that light up as the narration names them: steps[k] = box indices lit during sentence k
+    (default: sentence k lights box k)."""
+    return {"type": "diagram", "title": title, "say": say, "boxes": boxes, "steps": steps, **kw}
+
+
 def slide(title, say, **kw):
     return {"type": "slide", "title": title, "say": say, **kw}
 

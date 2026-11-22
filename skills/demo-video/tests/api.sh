@@ -11,7 +11,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do curl -s "http://127.0.0.1:$PORT/api/notes" >/d
 export REQ_BASE="http://127.0.0.1:$PORT"
 req() { python3 "$SKILL/scripts/req.py" "$@"; }
 pass=0; fail=0; skip=0
-check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); fi; }
+check() { if eval "$2"; then echo "ok   $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); return 1; fi; }
 plain() { sed $'s/\033\\[[0-9;]*m//g'; }
 
 t=an_api_call_is_shown_as_a_developer_sees_it
