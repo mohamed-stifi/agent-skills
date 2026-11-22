@@ -1,7 +1,7 @@
 name: Decision for the product owner
 description: A choice the specs leave open, or a place where code must differ from them. Written so someone who didn't build it can decide.
 title: "Decision: "
-labels: ["needs:human", "task-to-OWNER"]
+labels: ["needs:human"]
 body:
   - type: markdown
     attributes:

@@ -1,5 +1,17 @@
 # Changelog — github-human-tasks
 
+## 3.0.0 — 2026-11-21
+- Any agent, any role: posts start with `🤖 **<your name>** (<your role>)` (e.g. `🤖 **Codex** (review agent)`);
+  no file names a model or "build agent" as a fixed value. `MARK` is unchanged.
+- An issue waiting on the human is assigned to them and labelled `needs:human`; the per-person label
+  `task-to-<owner>` is gone (setup creates one label, the forms carry only `needs:human`). `watch.sh`'s `LABEL`
+  defaults to `needs:human`; a repo still using another label sets `LABEL`. After a decision: remove
+  `needs:human` and unassign.
+- "Handle a reply" is one sentence instead of a table of reply types.
+- "Keep this skill current" becomes "Remember the human's preferences": they go in the project's `AGENTS.md`
+  (or `CLAUDE.md`), which works without access to the skill's repo; a change for every user goes to the skill's
+  source repo with push access, or as an issue there once the human agrees.
+
 ## 2.0.1 — 2026-11-21
 - Issue forms set the title prefix (`Decision: `, `Task: `), drop one project's ids and terms from their
   placeholders, require "What we found", and use the templates' heading "When it's done". Field ids unchanged.

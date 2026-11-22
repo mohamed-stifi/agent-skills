@@ -1,13 +1,14 @@
 # Templates
 
 Plain words, short sections, a number to reply with. Write for a product owner who didn't build it.
-The header and marker rule for every post is in SKILL.md; the blocks below already start with both.
+The header and marker rule for every post is in SKILL.md; the blocks below already start with both. Put your
+own name and role in the header.
 
 ## Decision issue: title `Decision: <the question in a few words>`
 
 ```markdown
 <!-- proj-agent -->
-🤖 **Claude** (<project> build agent)
+🤖 **<your name>** (<your role>)
 
 ### The words
 - **<term>:** <one plain line>. (Define every term the question uses.)
@@ -41,7 +42,7 @@ Reply with the number.
 
 ```markdown
 <!-- proj-agent -->
-🤖 **Claude** (<project> build agent)
+🤖 **<your name>** (<your role>)
 
 ### Why a person is needed
 <the words first; why the agent can't do it; what it blocks>
@@ -54,7 +55,7 @@ Reply with the number.
 2. …
 
 ### When it's done
-Comment "done" here or close the issue. The build agent watches it and continues.
+Comment "done" here or close the issue. I'm watching it and will continue.
 ```
 
 ## Replies
@@ -62,7 +63,7 @@ Comment "done" here or close the issue. The build agent watches it and continues
 **Answering a question:**
 ```markdown
 <!-- proj-agent -->
-🤖 **Claude** (<project> build agent)
+🤖 **<your name>** (<your role>)
 
 <plain answer: the term defined, a short story or example>
 
@@ -72,7 +73,7 @@ Comment "done" here or close the issue. The build agent watches it and continues
 **Recording a decision:**
 ```markdown
 <!-- proj-agent -->
-🤖 **Claude** (<project> build agent)
+🤖 **<your name>** (<your role>)
 
 **Recorded: option <N>** <and any extra the human added, restated exactly>.
 
@@ -82,5 +83,5 @@ Comment "done" here or close the issue. The build agent watches it and continues
 
 <any "later" part → "tracked as #M">
 
-Your part here is done, so I've removed `task-to-<owner>`.
+Your part here is done, so I've removed `needs:human` and unassigned you.
 ```
