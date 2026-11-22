@@ -6,6 +6,7 @@ Each segment is one of:
   slide  - full-screen slide: title + bullets and/or a row of boxes joined by arrows (Pillow), narrated
   term   - a real terminal session recorded by VHS (1920x900), framed with a header and a caption bar
   browser - a real Chromium used like a person (Playwright, scripts/browser.py), framed the same way
+  api    - real HTTP calls shown by `req` (request, status, response), then effect checks: a terminal scene
 
 Every segment gets its own voice-over (Kokoro-82M, a local neural voice; or macOS `say`); the picture is held on its
 last frame until the voice ends, so narration and picture never drift. Segments -> chapters/NN-slug.mp4 -> the full walkthrough with
@@ -363,7 +364,33 @@ def tape_for(seg, clip: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
+def as_term(seg):
+    """An `api` scene is a terminal scene: one `req` call per entry of `calls`, then the `then` effect checks."""
+    if seg["type"] != "api":
+        return seg
+    cmds = []
+    for c in seg["calls"]:
+        cmd = f"req {c.get('method', 'GET')} {c['path']}"
+        if "json" in c:
+            body = json.dumps(c["json"], ensure_ascii=False)
+            if "'" in body:                                  # VHS can't escape: put the body in a file
+                f = BUILD / "bodies" / (hashlib.sha256(body.encode()).hexdigest()[:10] + ".json")
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(body)
+                cmd += f" -d @{f}"
+            else:
+                cmd += f" -d '{body}'"
+        for k, v in c.get("headers", {}).items():
+            cmd += f" -H '{k}: {v}'"
+        if c.get("show"):
+            cmd += f" --show '{c['show']}'"
+        cmds.append({"cmd": cmd, "pause": c.get("pause", 2.5)})
+    setup = [f'req() {{ python3 {Path(__file__).with_name("req.py")} "$@"; }}', f"export REQ_BASE={seg['base']}"]
+    return {**seg, "type": "term", "cmds": cmds + list(seg.get("then", [])), "setup": setup + seg.get("setup", [])}
+
+
 def make_segment(seg, chap, idx: int, out: Path):
+    seg = as_term(seg)
     tmp = BUILD / chap["num"] / f"{idx:02d}"
     tmp.mkdir(parents=True, exist_ok=True)
     voice_wav = tmp / "voice.wav"
@@ -511,7 +538,7 @@ def dry(chaps):
     for chap in chaps:
         print(f"\n######## {chap['num']} {chap['title']}")
         run_hooks(chap)
-        for seg in chap["segments"]:
+        for seg in map(as_term, chap["segments"]):
             if seg["type"] == "browser":
                 print(f"$ browser {seg['url']}")
                 scene = BUILD / "dry-scene.json"

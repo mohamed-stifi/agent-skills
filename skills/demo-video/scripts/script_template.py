@@ -29,6 +29,11 @@ def browser(caption, say, url, steps, **kw):
     return {"type": "browser", "caption": caption, "say": say, "url": url, "steps": steps, **kw}
 
 
+def api(caption, say, base, calls, then=(), **kw):
+    """Real HTTP calls shown as request -> status -> response, then `then`: commands that show the effect."""
+    return {"type": "api", "caption": caption, "say": say, "base": base, "calls": calls, "then": list(then), **kw}
+
+
 def slide(title, say, **kw):
     return {"type": "slide", "title": title, "say": say, **kw}
 
