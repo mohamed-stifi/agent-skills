@@ -121,6 +121,26 @@ terminal scene. The engine trims the blank start and holds the last frame until 
 app's state in the chapter's `before` hook (restart it, reset its database), so the recording starts clean.
 A failing step stops the scene and prints its number, the step, the page URL and the reason.
 
+### api: real HTTP calls, then the proof of their effect
+
+```python
+api("Create a note, then see it in the audit log",
+    "We post a note. The service answers 201 with its id. Then the audit log shows the new event.",
+    "http://127.0.0.1:8000",                                     # $REQ_BASE: calls show short paths
+    [{"method": "POST", "path": "/api/notes", "json": {"text": "Ship the audit report"}},
+     {"method": "POST", "path": "/api/notes", "json": {"text": ""}},          # the 422, shown in red
+     {"method": "GET", "path": "/api/notes", "show": "map(.text)"}],          # --show: a jq filter
+    then=["req GET /api/audit --show '.[-1]'",                   # effect checks: any shell command,
+          "sqlite3 work/app/app.db 'select count(*) from notes'"],  # e.g. the database or a log
+    step="step 3")
+```
+
+Each call is typed as `req METHOD PATH -d '<json>'` and prints `→ METHOD path` with the body, `← status
+reason · time` (green 2xx, yellow 3xx, red 4xx/5xx) and the response, pretty and coloured (30 lines at most;
+`"show"` filters it with jq, `"headers"` adds headers, `"pause"` sets the reading time, default 2.5 s).
+`then` lists the **effect checks**: show what the calls changed (a row, a log line, a file, another endpoint)
+instead of saying it. Viewers can copy `req` from `video/src/req.py`; it is plain `curl` with a readable view.
+
 ## Narration style
 
 - The voice is Kokoro (`VOICE=af_heart`, `SPEED=1.0`; other voices: `am_michael`, `bf_emma`, …), about 150–170

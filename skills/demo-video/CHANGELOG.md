@@ -1,5 +1,11 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 2.2.0 — 2026-11-22
+- `api` scenes: real HTTP calls shown the way a developer reads them, through `scripts/req.py` (stdlib only):
+  `→ METHOD path` and the body, `← status reason · time` (green, yellow or red), then the response, pretty and
+  coloured (`show`: a jq filter). `then` lists the **effect checks** that show what the calls changed (a row,
+  a log line, another endpoint). The scene is recorded as a terminal scene, so the dry run covers it.
+
 ## 2.1.0 — 2026-11-22
 - `browser` scenes: a real Chromium (Playwright, `scripts/browser.py`) uses the app like a person: a visible
   cursor glides to each target and ripples on a click, typing is key by key, `highlight` frames an element.
