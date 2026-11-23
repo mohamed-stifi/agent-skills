@@ -6,7 +6,6 @@ do yourself: commands in bash blocks, API calls as curl, browser steps as number
 """
 
 import json
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -15,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BUILD, DOC = ROOT / "build", ROOT / "doc"
 sys.path.insert(0, str(Path(__file__).parent))
 import script as S  # noqa: E402
-from engine import number_steps  # noqa: E402   (same "Step k of N" text as the video)
+from engine import curl_cmd, number_steps  # noqa: E402   (the same curl lines and "Step k of N" as the video)
 
 name = getattr(S, "OUTPUT_NAME", "walkthrough")
 title = getattr(S, "TITLE", "A guided video")
@@ -61,35 +60,6 @@ def browser_steps(seg):
     return out
 
 
-def curl(seg, c):
-    cmd = f"curl -s -X {c.get('method', 'GET')} {seg['base'].rstrip('/')}{c['path']}"
-    for k, v in c.get("headers", {}).items():
-        cmd += f" -H '{k}: {v}'"
-    if "json" in c:
-        cmd += " -H 'Content-Type: application/json' -d '" + json.dumps(c["json"], ensure_ascii=False) + "'"
-    if c.get("show"):
-        cmd += f" | jq '{c['show']}'"
-    return cmd
-
-
-def req_to_curl(seg, line):
-    """An effect check written with `req` becomes curl, which every reader has."""
-    if not line.startswith("req "):
-        return line
-    a = shlex.split(line)[1:]
-    call, i = {"method": a[0].upper(), "path": a[1]}, 2
-    while i < len(a):
-        if a[i] in ("-d", "--data"):
-            call["json"] = json.loads(a[i + 1]) if not a[i + 1].startswith("@") else a[i + 1]
-        elif a[i] in ("-H", "--header"):
-            k, _, v = a[i + 1].partition(":")
-            call.setdefault("headers", {})[k.strip()] = v.strip()
-        elif a[i] == "--show":
-            call["show"] = a[i + 1]
-        i += 2
-    return curl(seg, call)
-
-
 def section(seg):
     lines = []
     t = seg["type"]
@@ -114,8 +84,7 @@ def section(seg):
         cmds = [c if isinstance(c, str) else c.get("cmd") for c in seg["cmds"]]
         lines += ["", "```bash", *[c for c in cmds if c], "```"]
     if t == "api":
-        lines += ["", "```bash", *[curl(seg, c) for c in seg["calls"]],
-                  *[req_to_curl(seg, t) for t in seg.get("then", [])], "```"]
+        lines += ["", "```bash", *[curl_cmd(seg["base"], c) for c in seg["calls"]], *seg.get("then", []), "```"]
     if t == "browser":
         lines += [""] + [f"{k}. {s}" for k, s in enumerate(browser_steps(seg), 1)]
     return lines

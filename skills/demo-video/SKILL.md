@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "2.4.0"
+  version: "3.0.0"
   author: mohamed-stifi
 ---
 
@@ -51,8 +51,22 @@ provided, say how the video will work around it (a local model, sample data, ski
 Clone the repo into `work/` (never the user's working copy; mention their uncommitted changes and leave them
 alone), start what the subject needs, and use it as the audience would: the UI as a user in a real browser
 (`browser` scenes: the cursor, the typing and the clicks on screen), a service or API with real requests and
-the proof of their effect (`api` scenes: the request, the status, the response, then the row or log line it
+the proof of their effect (`api` scenes: the curl command, the response, then the row or log line it
 changed), the CLI in a terminal. Write down the exact steps that show each feature well, with short output.
+
+**Act as the viewer, who knows little.** They will repeat what they see, from the doc, with nothing but the
+project:
+- Type only **commands the viewer has**: the project's own (README, Makefile, package scripts, its CLIs) and
+  standard tools you tell them to install. Never a helper script, alias, function or `PATH` entry written for
+  the video; the engine refuses them. When the project has no command for a step, show the real long one, or
+  say on screen that none exists (a finding): never a new one.
+- Ask an agent, a form or a search the way a user would ask, in their words, not a prompt tuned for the
+  model. If only a tuned prompt works, that is a finding.
+- Show failures and retries as they happen; never hide them in a wrapper or a hidden step.
+- Start each chapter from where the viewer is: which folder (the prompt shows it), which terminal, what is
+  running. Starting a service or setting a variable they need happens on screen; hidden `before` and
+  `setup` steps only reset state off camera.
+- Say what is new: explain each new command, flag, variable and file in one sentence the first time.
 - **Environment problems** (a wrong default path, a missing env var): fix them in the clone and show the fix
   in the video, because viewers will hit them too.
 - **Real bugs:** in a pilot, they are the content. In a demo or tutorial, tell the user before recording and
@@ -63,7 +77,7 @@ Set up the video folder outside the repo (the user picks it; else `<parent-of-re
 
 ```bash
 bash SKILL/scripts/setup.sh            # tools, voice model (once), python env; says what to install
-mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,req.py,make_readme.py,make_doc.py,agent.jq,run.sh} video/src/
+mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,make_readme.py,make_doc.py,run.sh} video/src/
 cp SKILL/scripts/script_template.py video/src/script.py
 ```
 
@@ -100,7 +114,7 @@ video/
 ├── <name>.md, doc/       # the companion doc and its screenshots
 ├── chapters/NN-slug.mp4  # each chapter as a stand-alone clip
 ├── README.md             # chapter index with start times, how to re-record
-├── src/                  # script.py (the words and actions), engine.py and helpers
+├── src/                  # script.py (the words and actions) and the engine that records it
 ├── work/                 # throwaway clone(s): every action runs here
 └── build/                # intermediate files
 ```
@@ -120,7 +134,7 @@ video/
   never leaves the system broken.
 
 ## Showing an AI agent at work
-If the repo builds an agent, show it working on a real, injected problem: run it headless with stream-json and
-format it with `agent.jq` (one line per tool call, then the answer), in a `speedup` scene, and reset the fault
-in the same chapter:
-`claude -p "<question>" --output-format stream-json --verbose | jq -rj -f video/src/agent.jq`
+If the repo builds an agent, ask it the way its users do (its chat UI, its CLI, its Slack bot), with a real
+question about a real, injected problem, and reset the fault in the same chapter. Show its tool calls with what
+the project offers (a verbose flag, its logs, its UI); if it offers nothing, say so as a finding. Long runs go in
+a `speedup` scene.

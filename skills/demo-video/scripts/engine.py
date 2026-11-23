@@ -6,7 +6,7 @@ Each segment is one of:
   slide  - full-screen slide: title + bullets and/or a row of boxes joined by arrows (Pillow), narrated
   term   - a real terminal session recorded by VHS (1920x900), framed with a header and a caption bar
   browser - a real Chromium used like a person (Playwright, scripts/browser.py), framed the same way
-  api    - real HTTP calls shown by `req` (request, status, response), then effect checks: a terminal scene
+  api    - real HTTP calls typed as curl (| jq), then effect checks: a terminal scene
   diagram - a slide of boxes and arrows that lights up the parts each sentence talks about, in time with it
   section - a short card between steps: a gradient and one centred pill (icon + a few words)
   concept - two or three glowing tiles (icon, caps title, subtitle), optionally joined by "+", for "what is X"
@@ -27,7 +27,9 @@ Env: VOICE_ENGINE (kokoro | say, default kokoro), VOICE (default af_heart for ko
      SPEED (kokoro speed, default 1.0), RATE (say words per minute, default 172),
      KOKORO_MODELS (folder with kokoro-v1.0.onnx + voices-v1.0.bin, default ~/.cache/kokoro).
 
-script.py must define CHAPTERS and WORKDIRS; optional: ENV, TITLE, FOOTER, AUTHOR, PROMPT, OUTPUT_NAME, SPOKEN.
+script.py must define CHAPTERS and WORKDIRS; optional: ENV, TITLE, FOOTER, AUTHOR, PROMPT, OUTPUT_NAME, SPOKEN,
+VIEWER_HAS. Before a dry run or a recording, every typed command is checked: one the viewer doesn't have (a helper
+written for the video, a function from a hidden setup) stops the run.
 """
 
 from __future__ import annotations
@@ -38,6 +40,8 @@ import json
 import math
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -443,6 +447,123 @@ def q(text: str) -> str:
     raise ValueError(f"cannot quote for VHS (contains \" ' and `): {text}")
 
 
+def q_parts(text: str) -> list[str]:
+    """Any text as VHS strings: split it into runs that each leave out one of " ' `, typed one after another."""
+    parts, cur = [], ""
+    for ch in text:
+        if any(d not in cur + ch for d in "\"'`"):
+            cur += ch
+        else:
+            parts.append(q(cur))
+            cur = ch
+    return parts + ([q(cur)] if cur else [])
+
+
+def sh_quote(s: str) -> str:
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def curl_cmd(base: str, c: dict) -> str:
+    """One `api` call as the curl line a viewer would type: the full URL, the body, and jq to read the answer.
+    `"status": True` uses `curl -si` instead, whose first line is the HTTP status."""
+    url = c["path"] if c["path"].startswith(("http://", "https://")) else base.rstrip("/") + c["path"]
+    method = c.get("method", "GET").upper()
+    cmd = "curl -s" + ("i" if c.get("status") else "") + ("" if method == "GET" else f" -X {method}") + f" {url}"
+    for k, v in c.get("headers", {}).items():
+        cmd += " -H " + sh_quote(f"{k}: {v}")
+    if "json" in c:
+        cmd += " -H 'Content-Type: application/json' -d " + sh_quote(json.dumps(c["json"], ensure_ascii=False))
+    if not c.get("status"):
+        cmd += " | jq" + (" " + sh_quote(c["show"]) if c.get("show") else "")
+    return cmd
+
+
+# --- the viewer's commands: everything typed on screen must be something the viewer has too -----------------------
+WRAPPERS = {"sudo", "env", "time", "exec", "command", "nohup", "xargs", "watch", "then", "do", "else", "!"}
+DEFINED = re.compile(r"(?:^|[;&|\s])(?:function\s+)?([A-Za-z_][\w.-]*)\s*\(\)|\balias\s+([A-Za-z_][\w.-]*)=")
+
+
+def typed_programs(cmd: str):
+    """(program, its arguments) for each simple command of a shell line, after VAR=value and sudo/env/time."""
+    lex = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()")
+    lex.whitespace_split = True
+    try:
+        words = list(lex)
+    except ValueError:                                  # unbalanced quotes: let the dry run show the error
+        return []
+    out, cur = [], None
+    for w in words:
+        if set(w) <= set(";&|()"):
+            cur = None
+        elif cur is None:
+            if re.fullmatch(r"[A-Za-z_]\w*=.*", w) or w in WRAPPERS or w.startswith(("-", "$")):
+                continue
+            cur = (w, [])
+            out.append(cur)
+        else:
+            cur[1].append(w)
+    return out
+
+
+def origin(p: Path, workdirs: list[Path]):
+    """Why a file is not the viewer's (None when it is: a system tool, or tracked or installed in the clone)."""
+    p = p.resolve()
+    if any(p.is_relative_to(ROOT / d) for d in ("src", "build")):
+        return "a file of the video itself"
+    for w in sorted(workdirs, key=lambda x: -len(x.parts)):
+        if p.is_relative_to(w) and not ROOT.is_relative_to(w):
+            git = lambda *a: subprocess.run(["git", "-C", str(w), *a, str(p)], capture_output=True).returncode == 0
+            return None if git("ls-files", "--error-unmatch") or git("check-ignore", "-q") else \
+                "a file added to the clone (not tracked by git, not made by its install)"
+    return "a file of the video folder, outside the clone" if p.is_relative_to(ROOT) else None
+
+
+def viewer_problems(chaps) -> list[str]:
+    """Every typed command whose program (or script argument) the viewer does not have: a helper written for the
+    recording, a function or alias from a hidden `setup`, or a video folder put on PATH. VIEWER_HAS lists files
+    the viewer saw being made on screen earlier."""
+    workdirs = [Path(os.path.expanduser(str(v))).resolve() for v in SCRIPT.WORKDIRS.values()]
+    has = set(cfg("VIEWER_HAS", []))
+    problems = []
+    for chap in chaps:
+        for i, seg in enumerate(map(as_term, chap["segments"])):
+            if seg["type"] != "term":
+                continue
+            cwd = Path(os.path.expanduser(str(workdir(seg))))
+            path = {**os.environ, **cfg("ENV", {}), **seg.get("env", {})}.get("PATH", os.environ.get("PATH", ""))
+            hidden = {a or b for s in seg.get("setup", []) for a, b in DEFINED.findall(s)}
+            for c in seg["cmds"]:
+                cmd = c if isinstance(c, str) else c.get("cmd")
+                for prog, args in typed_programs(cmd or ""):
+                    where = f"chapter {chap['num']} scene {i}: `{prog}`"
+                    if prog in has or Path(prog).name in has:
+                        continue
+                    if prog in hidden:
+                        problems.append(f"{where} is defined in the scene's hidden setup")
+                        continue
+                    found = (cwd / os.path.expanduser(prog)) if "/" in prog else shutil.which(prog, path=path)
+                    why = found and Path(found).exists() and origin(Path(found), workdirs)
+                    if why:
+                        problems.append(f"{where} is {why} ({Path(found).resolve()})")
+                    for a in args:                     # bash helper.sh, jq -f filter.jq, curl -d @body.json
+                        a = a.split("=", 1)[-1].lstrip("@")
+                        if not a or a in has or Path(a).name in has:
+                            continue
+                        f = cwd / os.path.expanduser(a)
+                        if f.is_file() and (r := origin(f, workdirs)) == "a file of the video itself":
+                            problems.append(f"{where} reads {a}, {r}")
+    return problems
+
+
+def check_viewer_commands(chaps):
+    problems = viewer_problems(chaps)
+    if problems:
+        print("These commands are not ones the viewer has, so they can't follow along:", *problems, sep="\n  - ")
+        print("Type the project's real command instead (long is fine; explain it once). If the project has no command\n"
+              "for this, say so on screen as a finding. A file the viewer made on screen earlier goes in VIEWER_HAS.")
+        sys.exit(1)
+
+
 def workdir(seg):
     cwd = seg.get("cwd") or "main"
     return SCRIPT.WORKDIRS.get(cwd, cwd)
@@ -450,7 +571,7 @@ def workdir(seg):
 
 def tape_for(seg, clip: Path) -> str:
     env = seg.get("env", {})
-    prompt = seg.get("prompt", cfg("PROMPT", "repo"))
+    prompt = seg.get("prompt", cfg("PROMPT", "\\W"))                # default: the current folder's name
     setup = [f"cd {workdir(seg)}",
              "export PS1='\\[\\e[1;36m\\]" + prompt + "\\[\\e[0m\\] \\[\\e[1;33m\\]$\\[\\e[0m\\] '",
              "export TERM=xterm-256color COLUMNS=140", "export UV_NO_PROGRESS=1"]
@@ -461,7 +582,7 @@ def tape_for(seg, clip: Path) -> str:
              "Set CursorBlink false", "Set WaitTimeout 600s", r"Set WaitPattern /[>$]$/",
              "Hide"]
     for s in setup:
-        lines.append(f"Type {q(s)} Enter")
+        lines += [f"Type {p}" for p in q_parts(s)] + ["Enter"]
         lines.append("Wait")
     lines += ['Type "clear" Enter', "Wait", "Sleep 300ms", "Show", "Sleep 600ms"]
     for c in seg["cmds"]:
@@ -476,34 +597,17 @@ def tape_for(seg, clip: Path) -> str:
         else:
             cmd, pause = c, 1.6
         speed = "12ms" if len(cmd) > 90 else "22ms"
-        lines += [f"Type@{speed} {q(cmd)}", "Sleep 350ms", "Enter", "Wait", f"Sleep {pause}s"]
+        lines += [f"Type@{speed} {p}" for p in q_parts(cmd)] + ["Sleep 350ms", "Enter", "Wait", f"Sleep {pause}s"]
     lines.append("Sleep 1s")
     return "\n".join(lines) + "\n"
 
 
 def as_term(seg):
-    """An `api` scene is a terminal scene: one `req` call per entry of `calls`, then the `then` effect checks."""
+    """An `api` scene is a terminal scene: one curl line per entry of `calls`, then the `then` effect checks."""
     if seg["type"] != "api":
         return seg
-    cmds = []
-    for c in seg["calls"]:
-        cmd = f"req {c.get('method', 'GET')} {c['path']}"
-        if "json" in c:
-            body = json.dumps(c["json"], ensure_ascii=False)
-            if "'" in body:                                  # VHS can't escape: put the body in a file
-                f = BUILD / "bodies" / (hashlib.sha256(body.encode()).hexdigest()[:10] + ".json")
-                f.parent.mkdir(parents=True, exist_ok=True)
-                f.write_text(body)
-                cmd += f" -d @{f}"
-            else:
-                cmd += f" -d '{body}'"
-        for k, v in c.get("headers", {}).items():
-            cmd += f" -H '{k}: {v}'"
-        if c.get("show"):
-            cmd += f" --show '{c['show']}'"
-        cmds.append({"cmd": cmd, "pause": c.get("pause", 2.5)})
-    setup = [f'req() {{ python3 {Path(__file__).with_name("req.py")} "$@"; }}', f"export REQ_BASE={seg['base']}"]
-    return {**seg, "type": "term", "cmds": cmds + list(seg.get("then", [])), "setup": setup + seg.get("setup", [])}
+    cmds = [{"cmd": curl_cmd(seg["base"], c), "pause": c.get("pause", 2.5)} for c in seg["calls"]]
+    return {**seg, "type": "term", "cmds": cmds + list(seg.get("then", []))}
 
 
 def make_segment(seg, chap, idx: int, out: Path):
@@ -712,6 +816,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent))
     import script as SCRIPT  # noqa: E402
     chaps = [c for c in number_steps(SCRIPT.CHAPTERS) if not a.only or c["num"] in a.only]
+    check_viewer_commands(chaps)
     if a.dry:
         dry(chaps)
         sys.exit()

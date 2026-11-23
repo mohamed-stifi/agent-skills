@@ -1,5 +1,19 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 3.0.0 — 2026-11-23
+- **Only the viewer's commands on screen.** Before a dry run or a recording, the engine checks every typed
+  command: a helper written for the video (a script in `src/`, `build/` or `work/bin/`, a file added to the
+  clone that git neither tracks nor ignores, a function or alias from a hidden `setup`) stops the run with a
+  list. `VIEWER_HAS` names files the viewer made on screen earlier.
+- **Breaking:** `api` scenes type the real `curl … | jq` line with the full URL (`"status": True`: `curl -si`), the
+  same line as the doc. `scripts/req.py` and `scripts/agent.jq` are removed; `then` checks and agent scenes
+  that used them must use the project's or the system's commands.
+- Any command can be typed, whatever quotes it holds (no more script files to dodge VHS quoting).
+- The default prompt shows the current folder's name, so viewers see where each command runs.
+- SKILL.md: act as the viewer, who knows little: only their commands, questions asked the way a user would,
+  failures and retries shown, each chapter starting from where they are, each new command explained once. An
+  agent is asked the way its users ask it.
+
 ## 2.4.0 — 2026-11-22
 - Point where to look, from a style study of the user's reference videos: browser steps `zoom` (the page scales
   up around a target, sharp, then back; clicks still land), `callout` (a pill with an icon and a few words,

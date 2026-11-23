@@ -12,10 +12,11 @@ else is optional.
 | `ENV` | no | env vars exported in every terminal scene, before-hook and dry run |
 | `TITLE`, `AUTHOR` | no | MP4 metadata; `TITLE` is also the README heading |
 | `FOOTER` | no | small line at the bottom of title cards |
-| `PROMPT` | no | the shell prompt text in terminal scenes (default `repo`) |
+| `PROMPT` | no | the shell prompt text in terminal scenes (default `\\W`: the current folder's name) |
+| `VIEWER_HAS` | no | file names the viewer made on screen earlier (e.g. `["fmt.sh"]`), so typing them is allowed |
 | `OUTPUT_NAME` | no | base name of the final `.mp4` / `.srt` (default `walkthrough`) |
 | `SPOKEN` | no | `{regex: replacement}` pronunciations, merged over the engine's built-in list |
-| `README_NOTES` | no | markdown appended to README.md (requirements, helper scripts) |
+| `README_NOTES` | no | markdown appended to README.md (requirements, what to start first) |
 
 ## Chapter
 
@@ -27,7 +28,8 @@ else is optional.
 
 - `num` is a two-digit string. Output goes to `chapters/04-ci-rules.mp4`, and `--only 04` selects it.
 - `before` holds shell commands run (in `WORKDIRS["main"]`, with `ENV`) before recording or a dry run.
-  Use it to reset state, start containers or trigger a pipeline. They are skipped with `--reuse-terms`.
+  Use it to reset state off camera (a clean database, a fault undone). What the viewer must do themselves
+  (start a service, set a variable) belongs on screen, in a scene. They are skipped with `--reuse-terms`.
   Their output is hidden, so a failing hook only shows up as odd output in the scenes. Dry-run first.
 - A chapter is rebuilt only when its dict or the voice settings (`VOICE_ENGINE`, `VOICE`, `SPEED`, `RATE`) change (a hash in `build/NN/meta.json`).
   Use `--force` to rebuild anyway, for example after the repo changed.
@@ -115,7 +117,7 @@ term("Caption: the one-line point, `code` allowed",
      step="step 1",          # pill in the top-right corner
      cwd="sim",              # a WORKDIRS key or an absolute path (default "main")
      env={"X": "1"},         # extra exports for this scene
-     setup=["source .venv/bin/activate"],   # run hidden before the scene starts
+     setup=["source .venv/bin/activate"],   # run hidden before the scene starts (only what the viewer did earlier)
      prompt="api",           # override the prompt text
      speedup=True)           # long-running scene: compress to ≈ narration length, badge "sped up ×N.N"
 ```
@@ -124,8 +126,13 @@ Terminal area: 1920×900 at font size 22, about 140 columns and 34 rows. Keep th
 through `head`, `tail`, `jq '{only, the, fields}'`, `cut -c1-160`, and `grep -v` the noise. If output
 scrolls off before the viewer can read it, split the scene or raise `pause`.
 
-Quoting: a command may contain any two of `"`, `'` and `` ` `` but not all three, because VHS strings
-have no escapes. Move such a command into a small script file.
+Quoting: any command works, whatever quotes it holds; the engine types it in parts VHS can quote.
+
+**Only the viewer's commands.** Before a dry run or a recording, the engine checks every typed command (and
+every file it reads, like `jq -f x.jq`): a program from the video folder (`src/`, `build/`, `work/bin/`), a file
+added to the clone that git neither tracks nor ignores, or a function or alias from the scene's `setup` stops
+the run with a list. Type the project's real command instead. A file the viewer made on screen earlier goes in
+`VIEWER_HAS`.
 
 Waiting: the engine waits until the last line ends in `$` or `>` (the prompt). A command that
 prints such a line itself ends the wait early. Long commands are fine (timeout 600 s).
@@ -182,20 +189,22 @@ A failing step stops the scene and prints its number, the step, the page URL and
 ```python
 api("Create a note, then see it in the audit log",
     "We post a note. The service answers 201 with its id. Then the audit log shows the new event.",
-    "http://127.0.0.1:8000",                                     # $REQ_BASE: calls show short paths
+    "http://127.0.0.1:8000",                                     # the base URL of each call
     [{"method": "POST", "path": "/api/notes", "json": {"text": "Ship the audit report"}},
-     {"method": "POST", "path": "/api/notes", "json": {"text": ""}},          # the 422, shown in red
-     {"method": "GET", "path": "/api/notes", "show": "map(.text)"}],          # --show: a jq filter
-    then=["req GET /api/audit --show '.[-1]'",                   # effect checks: any shell command,
+     {"method": "POST", "path": "/api/notes", "json": {"text": ""}, "status": True},   # curl -si: the 422
+     {"method": "GET", "path": "/api/notes", "show": "map(.text)"}],          # | jq 'map(.text)'
+    then=["curl -s http://127.0.0.1:8000/api/audit | jq '.[-1]'",  # effect checks: any shell command,
           "sqlite3 work/app/app.db 'select count(*) from notes'"],  # e.g. the database or a log
     step="step 3")
 ```
 
-Each call is typed as `req METHOD PATH -d '<json>'` and prints `→ METHOD path` with the body, `← status
-reason · time` (green 2xx, yellow 3xx, red 4xx/5xx) and the response, pretty and coloured (30 lines at most;
-`"show"` filters it with jq, `"headers"` adds headers, `"pause"` sets the reading time, default 2.5 s).
-`then` lists the **effect checks**: show what the calls changed (a row, a log line, a file, another endpoint)
-instead of saying it. Viewers can copy `req` from `video/src/req.py`; it is plain `curl` with a readable view.
+Each call is typed as the curl line a viewer would use, with the full URL:
+`curl -s -X POST http://127.0.0.1:8000/api/notes -H 'Content-Type: application/json' -d '{"text": "…"}' | jq`.
+The response is pretty and coloured by `jq`; `"show"` gives jq a filter (`| jq 'map(.text)'`). `"status": True`
+types `curl -si` instead, whose first line is the HTTP status (no jq): use it where the status is the point,
+such as a 422. `"headers"` adds `-H` lines and `"pause"` sets the reading time (default 2.5 s). `then` lists the
+**effect checks**: show what the calls changed (a row, a log line, a file, another endpoint) instead of saying
+it. They are typed as written, so they too must be commands the viewer has. The doc shows the same lines.
 
 ## Narration style
 
