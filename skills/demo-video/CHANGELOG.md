@@ -1,5 +1,15 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 4.1.0 — 2026-11-23
+- **Cleanup of what the video owns** (`scripts/ledger.py`): `snapshot` before starting anything; `cleanup
+  [--dry] [--limit-gb 2]` checkpoints the data of the video's own Compose projects, then removes their
+  containers, networks and volumes and stops the processes started in the video folder since the snapshot; the
+  user's stacks in the video's `WORKDIRS` go back exactly as found (stopped again, extra containers removed,
+  volumes kept); anything else is only reported. `status` lists what runs; `restore` puts a checkpoint back.
+- Clones get the Compose project name `dv-<clone>` in every scene and hook, so they never take over the user's
+  own project of the same name.
+- INDEX.md shows the checkpoints, the last cleanup and what was left alone.
+
 ## 4.0.0 — 2026-11-23
 - **Breaking: one folder per repo.** Everything lives in `<repo>/.video_demo_dir/`, git-ignored by its own
   `.gitignore` (`*`): `INDEX.md` and `state.json`, `features/` (the feature map), `videos/<slug>/vN/` (each
