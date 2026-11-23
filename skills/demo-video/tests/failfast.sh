@@ -76,7 +76,7 @@ check $t 'echo "$out" | grep -qE "Recording these chapters will take about [0-9]
 
 t=a_sign_in_is_saved_and_reused
 login=$(bash run.sh browser.py login "$B/login" "$V/state.json" --until 'signed=1' --headless --minutes 1 2>&1)
-mode=$(stat -f %Lp "$V/state.json" 2>/dev/null || stat -c %a "$V/state.json" 2>/dev/null)
+mode=$(stat -c %a "$V/state.json" 2>/dev/null || stat -f %Lp "$V/state.json" 2>/dev/null)
 who=$(dry 30)
 sed 's/"storage_state": "[^"]*",//' script.py > script.nostate && cp script.py script.keep && cp script.nostate script.py
 anon=$(dry 30); cp script.keep script.py

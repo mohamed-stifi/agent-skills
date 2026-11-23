@@ -10,7 +10,7 @@ V=$(mktemp -d "${TMPDIR:-/tmp}/dv-fo.XXXXXX"); trap 'rm -rf "$V"' EXIT
 VD="python3 $SKILL/scripts/vdir.py"
 R="$V/repo"; mkdir -p "$R" && git -C "$R" init -q && echo hi > "$R/a.txt" && git -C "$R" add a.txt \
   && git -C "$R" -c user.name=t -c user.email=t@t commit -qm init
-mode() { stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"; }
+mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
 
 t=the_folder_is_set_up_once_and_hidden_from_git
 out=$($VD init "$R" 2>&1)
