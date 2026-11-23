@@ -15,7 +15,7 @@ AUTHOR = "the team"
 PROMPT = "REPO"                                        # shell prompt shown in terminal scenes
 OUTPUT_NAME = "REPO-walkthrough"                       # -> REPO-walkthrough.mp4 / .srt
 SPOKEN = {}                                            # extra pronunciations, e.g. {r"\bk8s\b": "kubernetes"}
-README_NOTES = ""                                      # extra lines for README.md (requirements, helpers)
+README_NOTES = ""                                      # extra lines for README.md (requirements, what to start first)
 
 CLEAN = "git checkout -q . && git clean -fdq"          # handy before-hook: reset the clone
 
@@ -30,7 +30,7 @@ def browser(caption, say, url, steps, **kw):
 
 
 def api(caption, say, base, calls, then=(), **kw):
-    """Real HTTP calls shown as request -> status -> response, then `then`: commands that show the effect."""
+    """Real HTTP calls typed as curl | jq (a call with "status": True: curl -si), then `then`: commands that show the effect."""
     return {"type": "api", "caption": caption, "say": say, "base": base, "calls": calls, "then": list(then), **kw}
 
 

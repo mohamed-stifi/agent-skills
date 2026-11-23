@@ -19,6 +19,8 @@ stand-alone clip, so open each with one sentence of context.
 12. End on the result in its real place (the page, the PR, the file) and one line on what to do next.
 13. Never show or say a secret's value: `blur` it and say it is hidden.
 14. Keep sentences short (about 15 words); one action per sentence in tutorials.
+15. Act as the viewer, who knows little (SKILL.md, step 4): only commands they have, questions asked the way
+    a user would ask them, failures and retries shown as they happen.
 
 Scenes: `browser` for anything with a UI, `api` for services and endpoints, `term` for CLIs, logs and
 databases, `diagram` for how parts fit, `slide`/`card` for words. Prefer showing over telling: a slide only
@@ -74,7 +76,9 @@ For "is it working?", QA, or proof before a release: what was tested, how, and w
 | N-1 | Failures | each failure reproduced on screen, with whether it is a bug or the environment |
 | N | Verdict | a slide: works / broken / untested, numbered, each with one line of why it matters |
 
-Show failures plainly; they are the point. Keep the commands that prove each result on screen.
+Show failures plainly; they are the point. Keep the commands that prove each result on screen. Test what a
+user can do with the project as it ships: when a check needs a command the project lacks (asking as another
+user, reading its history), that gap is a finding; show the real long way or none, never a new one.
 
 ## Project guide
 For "the whole project" or onboarding a team to something an agent built. Show the feature map and the

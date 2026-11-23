@@ -1,5 +1,34 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 3.1.0 — 2026-11-23
+- **Fail fast.** Each recorded command's exit codes are written invisibly; the first unexpected failure (also
+  inside a pipe) stops the build after its scene. `{"cmd": …, "fails": True}` shows a failure on purpose. A
+  failing `before` hook stops the build too.
+- **A faithful dry run:** one interactive bash per scene on a terminal, closed at the end like VHS's, so a
+  service started with a bare `&` dies in the dry run too; `cd` and variables carry over between commands.
+- **`SERVICES`** health checks: a service that stops answering stops the build, with a `nohup … & disown` hint.
+- **`--detach` / `--status`:** the recording runs as its own process (it survives the agent's session, keeps a
+  Mac awake), one at a time (a lock).
+- **Sign-ins:** `browser.py login <url> <file> --until <regex>` saves a session (mode 600) after the person
+  signs in, without a keychain prompt; scenes load it with `storage_state`. `wait_until` for pages that never
+  go quiet, `timeout` on waits, `headless`.
+- **Chapter markers** stay right in long videos (`-movie_timescale 1000`).
+- The dry run ends with an estimate of the recording time.
+
+## 3.0.0 — 2026-11-23
+- **Only the viewer's commands on screen.** Before a dry run or a recording, the engine checks every typed
+  command: a helper written for the video (a script in `src/`, `build/` or `work/bin/`, a file added to the
+  clone that git neither tracks nor ignores, a function or alias from a hidden `setup`) stops the run with a
+  list. `VIEWER_HAS` names files the viewer made on screen earlier.
+- **Breaking:** `api` scenes type the real `curl … | jq` line with the full URL (`"status": True`: `curl -si`), the
+  same line as the doc. `scripts/req.py` and `scripts/agent.jq` are removed; `then` checks and agent scenes
+  that used them must use the project's or the system's commands.
+- Any command can be typed, whatever quotes it holds (no more script files to dodge VHS quoting).
+- The default prompt shows the current folder's name, so viewers see where each command runs.
+- SKILL.md: act as the viewer, who knows little: only their commands, questions asked the way a user would,
+  failures and retries shown, each chapter starting from where they are, each new command explained once. An
+  agent is asked the way its users ask it.
+
 ## 2.4.0 — 2026-11-22
 - Point where to look, from a style study of the user's reference videos: browser steps `zoom` (the page scales
   up around a target, sharp, then back; clicks still land), `callout` (a pill with an icon and a few words,

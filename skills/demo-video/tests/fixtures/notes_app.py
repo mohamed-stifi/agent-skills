@@ -6,6 +6,9 @@
   GET  /api/notes        [{"id", "text", "created"}]
   POST /api/notes        {"text": "..."} -> 201 the note | 422 {"error": "..."} when text is empty
   GET  /api/audit        [{"at", "event", "note_id"}]: every change, newest last
+  GET  /login            "signs in": sets the cookie sid=abc123, then redirects to /?signed=1
+  GET  /whoami           the sid cookie's value, or "nobody"
+  GET  /live             a page holding an open connection to /stream (it never reaches "network idle")
 """
 
 import json
@@ -53,7 +56,32 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == "/":
+        if self.path == "/login":
+            self.send_response(302)
+            self.send_header("Set-Cookie", "sid=abc123; Path=/; HttpOnly")
+            self.send_header("Location", "/?signed=1")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if self.path == "/whoami":
+            sid = next((c.split("=", 1)[1] for c in self.headers.get("Cookie", "").split("; ") if c.startswith("sid=")),
+                       "nobody")
+            return self.send(200, f"<!doctype html><p id='who'>signed in as {sid}</p>", "text/html; charset=utf-8")
+        if self.path == "/live":
+            return self.send(200, "<!doctype html><p id='live'>live page</p><script>new EventSource('/stream')</script>",
+                             "text/html; charset=utf-8")
+        if self.path == "/stream":                          # an event stream that stays open
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            try:
+                while True:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    time.sleep(1)
+            except OSError:
+                return None
+        if self.path == "/" or self.path.startswith("/?"):
             return self.send(200, PAGE, "text/html; charset=utf-8")
         if self.path == "/api/notes":
             rows = db.execute("select id, text, created from notes order by id").fetchall()

@@ -28,7 +28,7 @@ fi
 V=$(mktemp -d "${TMPDIR:-/tmp}/dv-ex.XXXXXX"); PORT=$((20000 + RANDOM % 20000))
 python3 "$SKILL/tests/fixtures/notes_app.py" "$PORT" & APP=$!
 trap 'kill $APP 2>/dev/null; wait $APP 2>/dev/null; rm -rf "$V"' EXIT
-mkdir -p "$V/video/src" && cp "$SKILL"/scripts/{engine.py,browser.py,req.py,make_doc.py,make_readme.py,run.sh} "$V/video/src/"
+mkdir -p "$V/video/src" && cp "$SKILL"/scripts/{engine.py,browser.py,make_doc.py,make_readme.py,run.sh} "$V/video/src/"
 B="http://127.0.0.1:$PORT"
 cat > "$V/video/src/script.py" <<EOF
 WORKDIRS = {"main": "$V"}
@@ -45,7 +45,7 @@ CHAPTERS = [
  {"num": "02", "slug": "api", "title": "The API", "segments": [
    {"type": "api", "caption": "Create a note", "say": "Post a note.", "base": "$B",
     "calls": [{"method": "POST", "path": "/api/notes", "json": {"text": "From the API"}}],
-    "then": ["req GET /api/audit --show 'length'"]}]},
+    "then": ["curl -s $B/api/audit | jq length"]}]},
  {"num": "03", "slug": "page", "title": "The page", "segments": [
    {"type": "browser", "caption": "Save a note from the page", "say": "Type a note and save it.", "url": "$B/",
     "steps": [{"type": "From the page", "into": "#text"}, {"click": "#save"}, {"expect": "From the page"}]}]},
@@ -77,8 +77,8 @@ t=the_doc_can_be_followed_without_the_video
 D="$V/video/notes-guide.md"
 check $t '[ -s "$D" ] && grep -n "^## " "$D" | cut -d: -f2- | tr "\n" "|" | grep -q "^## 00 The flow (00:00)|## 01 Start it (00:[0-9][0-9])|## 02 The API (00:[0-9][0-9])|## 03 The page (00:[0-9][0-9])|$" \
   && grep -q "^echo service up on $PORT$" "$D" \
-  && grep -qF "curl -s -X POST $B/api/notes -H '"'"'Content-Type: application/json'"'"' -d '"'"'{\"text\": \"From the API\"}'"'"'" "$D" \
-  && grep -qF "curl -s -X GET $B/api/audit | jq '"'"'length'"'"'" "$D" && ! grep -q "^req " "$D" \
+  && grep -qxF "curl -s -X POST $B/api/notes -H '"'"'Content-Type: application/json'"'"' -d '"'"'{\"text\": \"From the API\"}'"'"' | jq" "$D" \
+  && grep -qxF "curl -s $B/api/audit | jq length" "$D" \
   && grep -q "^2\. Type “From the page” into \`#text\`\.$" "$D" \
   && [ "$(grep -c "^!\[.*\](doc/0[0-3]-00.png)$" "$D")" = 4 ] && [ "$(ls "$V/video/doc" | wc -l | tr -d " ")" = 4 ]' \
   || { echo "$doc" | tail -5 | sed 's/^/     /'; grep -n "^## \|curl\|^[0-9]\.\|!\[\|^echo" "$D" 2>/dev/null | head -20 | sed 's/^/     /'; }
