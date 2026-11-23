@@ -48,7 +48,7 @@ cd src
 bash run.sh engine.py --dry --only 05     # run a chapter's actions for real and print their output
 bash run.sh engine.py --only 05           # re-record chapter 05
 bash run.sh engine.py                     # rebuild what changed and re-assemble the full video
-bash run.sh engine.py --only 05 --reuse-terms   # narration fix only: keep the screen recordings
+bash run.sh engine.py --plan                    # what would be recorded again, and why (narration fixes: nothing)
 VOICE=am_michael bash run.sh engine.py --force  # another Kokoro voice
 bash run.sh make_readme.py                # refresh this file
 ```
