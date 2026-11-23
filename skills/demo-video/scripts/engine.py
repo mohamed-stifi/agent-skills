@@ -601,9 +601,21 @@ def tape_for(seg, clip: Path, rc: Path | None = None) -> str:
     return "\n".join(lines) + "\n"
 
 
+def compose_name(path) -> str | None:
+    """A clone inside the video folder gets its own Compose project name, `dv-<folder>`, so it can never take
+    over the user's own project of the same name (a clone of `zops` would otherwise be the project `zops`)."""
+    p = Path(os.path.expanduser(str(path))).resolve()
+    if VDIR and p.is_relative_to(VDIR):
+        rel = p.relative_to(VDIR).parts
+        return "dv-" + re.sub(r"[^a-z0-9-]+", "-", (rel[1] if len(rel) > 1 and rel[0] == "work" else rel[-1]).lower())
+    return None
+
+
 def scene_setup(seg):
     """The hidden lines that start every terminal scene, in VHS and in the dry run alike."""
     lines = [f"cd {workdir(seg)}", "export TERM=xterm-256color COLUMNS=140", "export UV_NO_PROGRESS=1"]
+    if name := compose_name(workdir(seg)):
+        lines.append(f"export COMPOSE_PROJECT_NAME={name}")
     lines += [f"export {k}={v}" for k, v in {**cfg("ENV", {}), **seg.get("env", {})}.items()]
     return lines + seg.get("setup", [])
 
@@ -794,8 +806,10 @@ def subtitle_chunks(text: str, start: float, end: float, times=None):
 
 def run_hooks(chap):
     for hook in chap.get("before", []):
+        name = compose_name(SCRIPT.WORKDIRS.get("main", "."))
         r = subprocess.run(hook, shell=True, executable="/bin/bash", cwd=SCRIPT.WORKDIRS.get("main"),
-                           env={**os.environ, **cfg("ENV", {})}, capture_output=True, text=True)
+                           env={**os.environ, **cfg("ENV", {}), **({"COMPOSE_PROJECT_NAME": name} if name else {})},
+                           capture_output=True, text=True)
         if r.returncode:
             stop(f"chapter {chap['num']}, before-hook", f"`{hook[:200]}` exited {r.returncode}\n"
                  + (r.stdout + r.stderr)[-1500:] + "\n(add `|| true` where a failure is fine)")
@@ -1063,6 +1077,12 @@ if __name__ == "__main__":
         detach(sys.argv[1:])
         sys.exit()
     lock = take_lock()
+    if VDIR and Path(__file__).with_name("ledger.py").exists():
+        import ledger
+        import vdir
+        vdir.add_workdirs(VDIR, SCRIPT.WORKDIRS.values())
+        if "snapshot" not in vdir.load(VDIR):              # the agent should take it before starting anything
+            ledger.snapshot(VDIR.parent)
     if a.dry:
         dry(chaps)
         sys.exit()

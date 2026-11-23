@@ -28,7 +28,7 @@ from pathlib import Path
 
 NAME = ".video_demo_dir"
 LAYOUT = ("videos", "features", "work", "secrets", "logs", "run")
-SRC_FILES = ("engine.py", "browser.py", "make_readme.py", "make_doc.py", "run.sh", "vdir.py")
+SRC_FILES = ("engine.py", "browser.py", "make_readme.py", "make_doc.py", "run.sh", "vdir.py", "ledger.py")
 HERE = Path(__file__).resolve().parent
 
 
@@ -47,7 +47,7 @@ def load(d: Path) -> dict:
     f = d / "state.json"
     s = json.loads(f.read_text()) if f.exists() else {}
     for k, v in (("version", 1), ("repo", str(d.parent)), ("videos", {}), ("notes", []), ("leftovers", []),
-                 ("running", [])):
+                 ("running", []), ("workdirs", [])):
         s.setdefault(k, v)
     return s
 
@@ -173,6 +173,15 @@ def note(d: Path, text: str, key="notes"):
     index(d)
 
 
+def add_workdirs(d: Path, paths):
+    """The folders a video works in; the cleanup puts back what it finds in those outside the video folder."""
+    s = load(d)
+    new = sorted({*s["workdirs"], *(str(Path(os.path.expanduser(str(p))).resolve()) for p in paths)})
+    if new != s["workdirs"]:
+        s["workdirs"] = new
+        save(d, s)
+
+
 def clock(t: float) -> str:
     t = int(t)
     return f"{t // 3600}:{t % 3600 // 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
@@ -214,7 +223,18 @@ def index(d: Path):
             for f in feats] or ["None yet (step 2 of the skill writes one file per feature)."]
     out += ["", "## Running now", ""]
     out += [f"- {r['kind']} `{r['name']}`: stop with `{r.get('stop', '?')}`" for r in s["running"]] or \
-           ["Nothing recorded as running."]
+           ["Nothing." if s.get("last_cleanup") else "Nothing recorded as running."]
+    if c := s.get("last_cleanup"):
+        out += ["", f"Last cleanup ({c['at']}): removed {len(c['removed'])} owned Docker item(s) and "
+                    f"{len(c['processes'])} process(es); put back {len(c['restored'])} found item(s)."]
+        out += [f"- not the video's, left alone: {u}" for u in c["unknown"]]
+    out += ["", "## Checkpoints (saved data of the video's own containers)", ""]
+    cps = sorted((d / "state").glob("*/meta.json"))
+    out += [f"- `{m['project']}`, saved {m['saved']}, {m['size'] / 1e6:.1f} MB: restore with `python3 <skill>/scripts/"
+            f"ledger.py restore <repo> {m['project']}` before starting it" for m in (json.loads(p.read_text()) for p in cps)]
+    out += [f"- {x}" for x in (s.get("last_cleanup") or {}).get("checkpoints", []) if "skipped" in x]
+    if not cps and not any("skipped" in x for x in (s.get("last_cleanup") or {}).get("checkpoints", [])):
+        out.append("None.")
     out += ["", "## Left outside on purpose", ""]
     out += [f"- {x['at']}: {x['text']}" for x in s["leftovers"]] or ["Nothing."]
     secrets = sorted(p.name for p in (d / "secrets").glob("*") if p.is_file())

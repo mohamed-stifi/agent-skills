@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "4.0.0"
+  version: "4.1.0"
   author: mohamed-stifi
 ---
 
@@ -65,6 +65,13 @@ with no keychain prompt; tell the user that name. They sign in, it saves the ses
 browser scenes then load it with `"storage_state"`. One sign-in serves every scene.
 
 ## 4. Pilot run: use it for real
+First, before starting anything: `python3 SKILL/scripts/ledger.py snapshot <repo>`. It records what already
+runs (the user's own stacks, running or stopped), so the cleanup at the end can put it back exactly as found.
+A clone's Docker Compose project gets the name `dv-<clone>` in every scene and hook, so it can never take over
+the user's own project of the same name; when you start a clone's stack by hand, pass the same name
+(`COMPOSE_PROJECT_NAME=dv-<clone>`). A project with a checkpoint (see `INDEX.md`) is restored first, instead
+of rebuilt: `python3 SKILL/scripts/ledger.py restore <repo> dv-<clone>`, then start it.
+
 Clone the repo into `VD/work/<name>` (never the user's working copy; mention their uncommitted changes and
 leave them alone; a clone already there is refreshed with `git fetch` and `git checkout`, not cloned again), start what the subject needs, and use it as the audience would: the UI as a user in a real browser
 (`browser` scenes: the cursor, the typing and the clicks on screen), a service or API with real requests and
@@ -130,9 +137,22 @@ their script, so re-runs rebuild only what changed, and a stopped recording resu
 `ffprobe -v error -show_chapters -show_streams -of compact <name>.mp4` must show 1920×1080 h264, aac, a
 mov_text subtitle track and one marker per chapter; sample a few frames for overflow. Then give the user the
 paths (the MP4, `chapters/`, the `.srt`, the companion doc `<name>.md` with its screenshots, the README), how to open it (QuickTime or VLC show chapters and
-subtitles), what you found, and any service you left running with how to stop it. A full build registers the
+subtitles), and what you found. A full build registers the
 version in `VD/INDEX.md` by itself; add what the next run must know with `vdir.py note <repo> "…"` (findings,
 next steps) and `vdir.py leftover <repo> "…"` (an account or app you created outside, such as a Slack app).
+
+**Then clean up**, so nothing made for the video keeps running:
+```bash
+python3 SKILL/scripts/ledger.py cleanup <repo> --dry   # what it would do: read it
+python3 SKILL/scripts/ledger.py cleanup <repo>         # checkpoint, remove, put back
+```
+It saves the data of the video's own containers (`dv-*` projects, or a compose folder inside `VD`) as files in
+`VD/state/` (up to `--limit-gb`, default 2), then removes those containers, networks and volumes, and stops the
+processes started in `VD` since the snapshot. What it found (the user's stacks in a `WORKDIRS` folder outside
+`VD`) goes back exactly as found: stopped again, extra containers removed, volumes kept. Anything else is
+never touched, only listed. If the dry run lists a process or container you are not sure the video started,
+ask the user before the real run. `INDEX.md` then shows "Running now: Nothing", the checkpoints and the
+last cleanup; tell the user, with any leftover outside (an account, an app).
 
 ## Output layout
 ```
@@ -149,6 +169,7 @@ next steps) and `vdir.py leftover <repo> "…"` (an account or app you created o
 │   └── build/                    # intermediate files
 ├── work/<name>/                  # the clones: every action runs here; kept and refreshed
 ├── secrets/                      # tokens and saved sign-ins (mode 700)
+├── state/<project>/              # checkpoints: the data of the video's own containers, as files
 ├── logs/, run/                   # recording logs; the lock and pid files
 ```
 
