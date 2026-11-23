@@ -52,6 +52,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent          # the video folder (this file lives in <video>/src)
+VDIR = next((q for q in ROOT.parents if q.name == ".video_demo_dir"), None)   # <repo>/.video_demo_dir, if inside one
 BUILD = ROOT / "build"
 CHAPTERS = ROOT / "chapters"
 W, H = 1920, 1080
@@ -976,8 +977,15 @@ def dry(chaps):
 
 
 # --- one recording at a time, and recordings that outlive the agent's session ----------------------------------
-LOCK, PIDFILE, STATUS, LOG = (ROOT / "record.lock", ROOT / "record.pid", ROOT / "record.status.json",
-                              ROOT / "record.log")
+if VDIR:                     # one recording at a time in the whole repo; this video's own pid, status and log
+    _tag = f"{ROOT.parent.name}-{ROOT.name}"
+    (VDIR / "run").mkdir(exist_ok=True)
+    (VDIR / "logs").mkdir(exist_ok=True)
+    LOCK, PIDFILE, STATUS, LOG = (VDIR / "run" / "record.lock", VDIR / "run" / f"{_tag}.pid",
+                                  VDIR / "run" / f"{_tag}.status.json", VDIR / "logs" / f"{_tag}.log")
+else:
+    LOCK, PIDFILE, STATUS, LOG = (ROOT / "record.lock", ROOT / "record.pid", ROOT / "record.status.json",
+                                  ROOT / "record.log")
 
 
 def take_lock():
@@ -1068,6 +1076,10 @@ if __name__ == "__main__":
         metas = [build_chapter(c, force=a.force) for c in chaps]
         if not a.no_assemble and not a.only:
             assemble(metas)
+            if VDIR and Path(__file__).with_name("vdir.py").exists():     # INDEX.md now lists this version
+                import vdir
+                vdir.register(ROOT)
+                print(f"registered in {VDIR / 'INDEX.md'}")
         code = 0
     except SystemExit as e:
         code = e.code if isinstance(e.code, int) else 1

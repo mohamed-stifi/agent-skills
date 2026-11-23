@@ -1,5 +1,15 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 4.0.0 — 2026-11-23
+- **Breaking: one folder per repo.** Everything lives in `<repo>/.video_demo_dir/`, git-ignored by its own
+  `.gitignore` (`*`): `INDEX.md` and `state.json`, `features/` (the feature map), `videos/<slug>/vN/` (each
+  re-record is a new version), `work/` (clones, kept and refreshed), `secrets/` (mode 700), `logs/`, `run/`.
+- `scripts/vdir.py` (stdlib): `init` (with a `.dockerignore` warning and `--import` of an old folder), `video`
+  (a new version, starting from the last one's script), `register` (the engine calls it after a full build),
+  `note`, `leftover`, `index`.
+- SKILL.md step 0: read `INDEX.md` first and reuse what exists.
+- The recording lock covers the whole repo; logs go to `logs/<slug>-vN.log`.
+
 ## 3.1.0 — 2026-11-23
 - **Fail fast.** Each recorded command's exit codes are written invisibly; the first unexpected failure (also
   inside a pipe) stops the build after its scene. `{"cmd": …, "fails": True}` shows a failure on purpose. A

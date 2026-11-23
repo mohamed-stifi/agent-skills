@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "3.1.0"
+  version: "4.0.0"
   author: mohamed-stifi
 ---
 
@@ -12,7 +12,18 @@ metadata:
 The user has a repo (built by an agent, open source, or from their team) and wants to *understand and show*
 it: how to run it, how to use each feature, how it works. You make the video an engineer would record after
 building the thing: you use it for real first, then show it step by step, worded for whoever will watch.
-`SKILL` = this folder.
+`SKILL` = this folder; `VD` = `<repo>/.video_demo_dir`, where everything you make and keep lives.
+
+## 0. Start from what was already done
+```bash
+python3 SKILL/scripts/vdir.py init <repo>     # creates VD once (git ignores it through its own .gitignore)
+```
+Then **read `VD/INDEX.md`** before anything else: the videos already made (which commit each shows, their
+chapters), the features already mapped (`VD/features/`), notes and findings, saved sign-ins, and what was left
+outside on purpose. Reuse them: a mapped feature needs only a check that it still works; a request close to an
+existing video starts from that video's script (a new version, below). If `init` warns about `.dockerignore`,
+pass the line it gives to the user (a Docker build of the repo would send the folder). An older demo-video
+folder: `vdir.py init <repo> --import <old folder>` brings it in as `videos/<slug>/v1`.
 
 ## 1. Read the request
 Take three things from the user's words, and ask one short question only when one of them is unclear:
@@ -37,6 +48,8 @@ Length follows the content, never a target: two minutes for one flag, an hour or
 Read the README, docs and ADRs, the entry points (UI routes and pages, the API routes or OpenAPI spec, every
 CLI `--help`), `docker-compose`/Makefile/CI, the env vars and the tests. Write the **feature map**: each
 feature or service, how to start it, how its user reaches it (page, endpoint, command), and what it needs.
+Save it as one file per feature, `VD/features/<feature>.md` (first line: a one-line summary; then how to start
+it, reach it, what it needs, its source folders, and the commit you checked it at), so the next run reuses it.
 - **Whole project or several parts:** show the map and a chapter outline (one line each), and wait for the
   user's go before recording.
 - **One feature:** say the plan in three lines and go on.
@@ -52,8 +65,8 @@ with no keychain prompt; tell the user that name. They sign in, it saves the ses
 browser scenes then load it with `"storage_state"`. One sign-in serves every scene.
 
 ## 4. Pilot run: use it for real
-Clone the repo into `work/` (never the user's working copy; mention their uncommitted changes and leave them
-alone), start what the subject needs, and use it as the audience would: the UI as a user in a real browser
+Clone the repo into `VD/work/<name>` (never the user's working copy; mention their uncommitted changes and
+leave them alone; a clone already there is refreshed with `git fetch` and `git checkout`, not cloned again), start what the subject needs, and use it as the audience would: the UI as a user in a real browser
 (`browser` scenes: the cursor, the typing and the clicks on screen), a service or API with real requests and
 the proof of their effect (`api` scenes: the curl command, the response, then the row or log line it
 changed), the CLI in a terminal. Write down the exact steps that show each feature well, with short output.
@@ -77,13 +90,15 @@ project:
   ask: show it, work around it, or fix it first.
 
 ## 5. Write the script, dry-run, record
-Set up the video folder outside the repo (the user picks it; else `<parent-of-repo>/video/`):
+Each video is `VD/videos/<slug>/vN/`; a re-record is a new version, so nothing recorded is ever deleted:
 
 ```bash
-bash SKILL/scripts/setup.sh            # tools, voice model (once), python env; says what to install
-mkdir -p video/src && cp SKILL/scripts/{engine.py,browser.py,make_readme.py,make_doc.py,run.sh} video/src/
-cp SKILL/scripts/script_template.py video/src/script.py
+bash SKILL/scripts/setup.sh                         # tools, voice model (once), python env; says what to install
+python3 SKILL/scripts/vdir.py video <repo> <slug>   # prints VD/videos/<slug>/vN: src/ holds the engine and a
+                                                    # script.py (the last version's, or the template)
 ```
+Keep tokens and saved sign-ins in `VD/secrets/` (mode 700), never in `src/`. Set `VIDEO_TYPE` in script.py
+(demo, tutorial, explainer, pilot, guide) for the index.
 
 Shape the chapters with the type's recipe and follow its script rules in `SKILL/references/video-types.md`.
 **Point where to look** in every scene: zoom on the field being used, highlight or arrow the button, a callout
@@ -93,7 +108,7 @@ and every action; `engine.py` turns it into video. Read `SKILL/references/script
 types (`browser`, `api`, `term`, `diagram`, `slide`, `card`) and the narration rules.
 
 ```bash
-cd video/src
+cd VD/videos/<slug>/vN/src
 bash run.sh engine.py --dry            # runs every action for real, prints the output, makes no video
 bash run.sh engine.py --only 03        # record one chapter, then look at frames before the rest
 bash run.sh engine.py --detach         # record everything missing or changed in the background, then the video
@@ -112,22 +127,29 @@ first failed command, so it never records an hour of errors. Check a recorded ch
 their script, so re-runs rebuild only what changed, and a stopped recording resumes where it stopped.
 
 ## 6. Verify and hand over
-`ffprobe -v error -show_chapters -show_streams -of compact video/<name>.mp4` must show 1920×1080 h264, aac, a
+`ffprobe -v error -show_chapters -show_streams -of compact <name>.mp4` must show 1920×1080 h264, aac, a
 mov_text subtitle track and one marker per chapter; sample a few frames for overflow. Then give the user the
 paths (the MP4, `chapters/`, the `.srt`, the companion doc `<name>.md` with its screenshots, the README), how to open it (QuickTime or VLC show chapters and
-subtitles), what you found, and any service you left running with how to stop it.
+subtitles), what you found, and any service you left running with how to stop it. A full build registers the
+version in `VD/INDEX.md` by itself; add what the next run must know with `vdir.py note <repo> "…"` (findings,
+next steps) and `vdir.py leftover <repo> "…"` (an account or app you created outside, such as a Slack app).
 
 ## Output layout
 ```
-video/
-├── <name>.mp4            # all chapters, with chapter markers and a subtitle track
-├── <name>.srt            # the narration as subtitles (also a transcript)
-├── <name>.md, doc/       # the companion doc and its screenshots
-├── chapters/NN-slug.mp4  # each chapter as a stand-alone clip
-├── README.md             # chapter index with start times, how to re-record
-├── src/                  # script.py (the words and actions) and the engine that records it
-├── work/                 # throwaway clone(s): every action runs here
-└── build/                # intermediate files
+<repo>/.video_demo_dir/           # git-ignored by its own .gitignore ("*"); the repo's files are untouched
+├── INDEX.md                      # read first: videos, features, notes, sign-ins, leftovers (generated)
+├── state.json                    # the same, for scripts
+├── features/<feature>.md         # the feature map, one file per feature
+├── videos/<slug>/vN/             # one folder per version of a video
+│   ├── <name>.mp4, <name>.srt    # the video (chapter markers, subtitle track) and its subtitles
+│   ├── <name>.md, doc/           # the companion doc and its screenshots
+│   ├── chapters/NN-slug.mp4      # each chapter as a stand-alone clip
+│   ├── README.md                 # chapter index with start times
+│   ├── src/                      # script.py (the words and actions) and the engine that records it
+│   └── build/                    # intermediate files
+├── work/<name>/                  # the clones: every action runs here; kept and refreshed
+├── secrets/                      # tokens and saved sign-ins (mode 700)
+├── logs/, run/                   # recording logs; the lock and pid files
 ```
 
 ## Pitfalls already solved
