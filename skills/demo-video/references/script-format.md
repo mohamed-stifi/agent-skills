@@ -13,6 +13,7 @@ else is optional.
 | `TITLE`, `AUTHOR` | no | MP4 metadata; `TITLE` is also the README heading |
 | `FOOTER` | no | small line at the bottom of title cards |
 | `PROMPT` | no | the shell prompt text in terminal scenes (default `\\W`: the current folder's name) |
+| `SERVICES` | no | `{"registry": {"check": "curl -sf localhost:7090/healthz"}}`: services the video starts; once a check passes it must keep passing after every scene (and every command in a dry run), or the build stops |
 | `VIEWER_HAS` | no | file names the viewer made on screen earlier (e.g. `["fmt.sh"]`), so typing them is allowed |
 | `OUTPUT_NAME` | no | base name of the final `.mp4` / `.srt` (default `walkthrough`) |
 | `SPOKEN` | no | `{regex: replacement}` pronunciations, merged over the engine's built-in list |
@@ -27,7 +28,8 @@ else is optional.
 ```
 
 - `num` is a two-digit string. Output goes to `chapters/04-ci-rules.mp4`, and `--only 04` selects it.
-- `before` holds shell commands run (in `WORKDIRS["main"]`, with `ENV`) before recording or a dry run.
+- `before` holds shell commands run (in `WORKDIRS["main"]`, with `ENV`) before recording or a dry run. One
+  that exits non-zero stops the build with its output (add `|| true` where a failure is fine).
   Use it to reset state off camera (a clean database, a fault undone). What the viewer must do themselves
   (start a service, set a variable) belongs on screen, in a scene. They are skipped with `--reuse-terms`.
   Their output is hidden, so a failing hook only shows up as odd output in the scenes. Dry-run first.
@@ -113,13 +115,21 @@ term("Caption: the one-line point, `code` allowed",
      ["plain command",                                  # typed, Enter, wait for prompt, 1.6 s pause
       {"cmd": "slow command | head -20", "pause": 4},   # longer pause to let viewers read
       {"sleep": 2},                                     # just wait
+      {"cmd": "grep -c ERROR app.log", "fails": True},  # may exit non-zero: shown on purpose
+      {"cmd": "make test", "timeout": 1800},           # dry run: seconds to wait (default 900)
       {"clear": True}],                                 # clear screen off-camera
      step="step 1",          # pill in the top-right corner
      cwd="sim",              # a WORKDIRS key or an absolute path (default "main")
      env={"X": "1"},         # extra exports for this scene
      setup=["source .venv/bin/activate"],   # run hidden before the scene starts (only what the viewer did earlier)
      prompt="api",           # override the prompt text
+     stops=["core"],         # this scene stops a SERVICES entry on purpose
      speedup=True)           # long-running scene: compress to ≈ narration length, badge "sped up ×N.N"
+
+**Fail fast.** While a scene is recorded, each command's exit codes (one per command of a pipe) are written,
+invisibly, to `build/NN/II/status.txt`. A non-zero exit, except a SIGPIPE (141) before the last command of
+a pipe, stops the build after that scene, unless the command is marked `"fails": True`. The dry run runs the
+same checks in one interactive bash per scene, on a terminal, closed at the end of the scene like VHS's.
 ```
 
 Terminal area: 1920×900 at font size 22, about 140 columns and 34 rows. Keep the output short: pipe
@@ -147,7 +157,9 @@ browser("Caption: the one-line point",
          {"click": "text=Save"},                       # any Playwright selector: CSS, text=…, role=…
          {"expect": "Ship the audit report"},          # fails the dry run if the page never shows it
          {"highlight": "li", "seconds": 2}],           # frame an element so the viewer looks there
-        step="step 2")
+        step="step 2",
+        storage_state="/abs/.../secrets/site.json",     # a saved sign-in (browser.py login)
+        wait_until="load")                              # for pages that never reach "network idle"
 ```
 
 | Step | Does |

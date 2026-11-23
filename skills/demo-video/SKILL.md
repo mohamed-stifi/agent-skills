@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
   author: mohamed-stifi
 ---
 
@@ -46,6 +46,10 @@ List everything only the user can give, in one checklist, before you try anythin
 (they go in a git-ignored file in the clone, never on screen), logins and accounts, paid services, a device or
 a machine, an approval, real data. Wait for the answers. Never invent a secret; if something can't be
 provided, say how the video will work around it (a local model, sample data, skipping that part on screen).
+**A sign-in** (a web app, Slack): run `bash run.sh browser.py login <url> <secrets>/site.json --until
+'<url regex once signed in>'`. It opens a browser window named "Chromium" (or "Google Chrome for Testing"),
+with no keychain prompt; tell the user that name. They sign in, it saves the session (mode 600) and closes;
+browser scenes then load it with `"storage_state"`. One sign-in serves every scene.
 
 ## 4. Pilot run: use it for real
 Clone the repo into `work/` (never the user's working copy; mention their uncommitted changes and leave them
@@ -92,13 +96,20 @@ types (`browser`, `api`, `term`, `diagram`, `slide`, `card`) and the narration r
 cd video/src
 bash run.sh engine.py --dry            # runs every action for real, prints the output, makes no video
 bash run.sh engine.py --only 03        # record one chapter, then look at frames before the rest
-bash run.sh engine.py                  # everything missing or changed, then the full video
+bash run.sh engine.py --detach         # record everything missing or changed in the background, then the video
+bash run.sh engine.py --status         # running? which chapter? how did it end?
 bash run.sh make_readme.py && bash run.sh make_doc.py   # README index, and the companion doc
 ```
 
-Always dry-run first. Check a recorded chapter by reading frames
-(`ffmpeg -v error -ss 20 -i chapters/03-*.mp4 -frames:v 1 build/check.png`). A long build runs in the
-background; chapters are cached by a hash of their script, so re-runs rebuild only what changed.
+Always dry-run first. The dry run runs each scene like the recording does (one terminal per scene, closed at
+its end) and stops at the first command that fails; declare each long-running service the video starts in
+`SERVICES` with a health check, so one that dies is caught at once. It ends with an estimate of the recording
+time: **tell the user how long and how heavy** (services, a local model, a browser) before recording. Record
+long videos with `--detach`: the recording survives the end of your session, keeps the computer awake, and
+only one runs at a time; check it with `--status`, never with a shell loop. A recording also stops at the
+first failed command, so it never records an hour of errors. Check a recorded chapter by reading frames
+(`ffmpeg -v error -ss 20 -i chapters/03-*.mp4 -frames:v 1 build/check.png`). Chapters are cached by a hash of
+their script, so re-runs rebuild only what changed, and a stopped recording resumes where it stopped.
 
 ## 6. Verify and hand over
 `ffprobe -v error -show_chapters -show_streams -of compact video/<name>.mp4` must show 1920×1080 h264, aac, a
@@ -123,10 +134,15 @@ video/
 - **Sandboxed shells:** vhs, Docker, uv caches and the voice often fail under a command sandbox ("Operation not
   permitted"); run them outside it. `open` is blocked too: give the user the command.
 - **VHS:** 15 fps (50 drops frames), `Output` is a bare file name (the engine runs vhs in the folder), strings
-  take no escapes (the engine's `q()` picks a delimiter), and `Wait` needs the prompt to end in `$`: a command
+  take no escapes (the engine types any quotes in parts), and `Wait` needs the prompt to end in `$`: a command
   whose last line ends in `$` or `>` ends the wait early, so add a `pause`.
 - **A dry run really acts:** it types, clicks and saves. Reset the app's state in the chapter's `before`
-  hook so the recording starts clean.
+  hook so the recording starts clean. A `before` hook that fails stops the build (`|| true` where it may).
+- **A service started on screen** dies when its scene's terminal closes if it was started with a bare `&`.
+  Start it the way a person leaves one running: `nohup <command> > <log> 2>&1 &` then `disown` (or the
+  project's own way: `docker compose up -d`, a `make` target).
+- **A failure shown on purpose** (a 422, a `grep` that finds nothing): mark it `{"cmd": …, "fails": True}`.
+- **Pages that never go quiet** (chat apps, live dashboards): `"wait_until": "load"` on the scene.
 - **Long-running scenes** (an agent, a pipeline): `"speedup": True` compresses the clip to the narration and
   stamps "sped up ×N"; say so in the narration.
 - **Wait loops:** `pgrep -f` matches itself; wait on a PID or a file.

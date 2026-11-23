@@ -2,12 +2,20 @@
 
     python browser.py record SCENE.json OUT.webm     # record; prints {"trim": seconds before the first page}
     python browser.py dry SCENE.json                 # run every step headless, print each one, no video
+    python browser.py login URL STATE.json --until REGEX [--minutes 15]
+        # opens a visible browser at URL for the person to sign in; when the page URL matches REGEX, saves the
+        # session (cookies, storage) to STATE.json (mode 600) and closes. Scenes load it with "storage_state".
 
-SCENE.json: {"url": "http://…", "steps": [...], "width": 1920, "height": 900}
+SCENE.json: {"url": "http://…", "steps": [...], "width": 1920, "height": 900,
+             "storage_state": "STATE.json", "wait_until": "load"}
+  storage_state: a saved sign-in (see login).  wait_until: when the first page counts as open: "networkidle"
+  (default), "load" or "domcontentloaded"; pages that keep a connection open (chat apps) never reach
+  networkidle, so use "load".
 A step is one action (a selector is any Playwright selector: CSS, `text=Save`, `role=button[name="Save"]`):
   {"goto": "http://…"}                 {"click": sel}                 {"hover": sel}
   {"type": "hello", "into": sel}       {"press": "Enter"}             {"scroll": sel} or {"scroll": 600}
-  {"wait": sel} / {"wait": {"text": "Saved"}} / {"wait": 2}          {"pause": 1.5}
+  {"wait": sel} / {"wait": {"text": "Saved"}} / {"wait": 2}  (+ "timeout": seconds, default 30)   {"pause": 1.5}
+  {"goto": "http://…", "wait_until": "load"}
   {"highlight": sel, "seconds": 2}     {"expect": "text the page must show"}   (shows ✓ and the text)
 Pointing (drawn only when recording; the dry run checks their targets):
   {"zoom": sel, "scale": 2} / {"zoom": false}      the page scales up around sel (sharp: done by the browser)
@@ -119,7 +127,7 @@ def glide(page, x, y, show):
 def do(page, step, show):
     """Run one step. Returns a short description for the dry-run log."""
     if "goto" in step:
-        page.goto(step["goto"], wait_until="networkidle")
+        page.goto(step["goto"], wait_until=step.get("wait_until", "networkidle"))
         return f"goto {step['goto']}"
     if "click" in step:
         _, x, y, _ = target(page, step["click"])
@@ -154,9 +162,9 @@ def do(page, step, show):
         if isinstance(w, (int, float)):
             page.wait_for_timeout(int(w * 1000))
         elif isinstance(w, dict) and "text" in w:
-            page.get_by_text(w["text"]).first.wait_for(state="visible", timeout=30000)
+            page.get_by_text(w["text"]).first.wait_for(state="visible", timeout=step.get("timeout", 30) * 1000)
         else:
-            page.locator(w).first.wait_for(state="visible", timeout=30000)
+            page.locator(w).first.wait_for(state="visible", timeout=step.get("timeout", 30) * 1000)
         return f"wait {w}"
     if "highlight" in step:
         _, x, y, b = target(page, step["highlight"])
@@ -216,15 +224,17 @@ def run(scene, out=None):
     w, h = scene.get("width", 1920), scene.get("height", 900)
     show = out is not None
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(headless=scene.get("headless", True))
         kw = {"viewport": {"width": w, "height": h}, "device_scale_factor": 1}
+        if scene.get("storage_state"):                 # a saved sign-in, loaded into a throwaway context
+            kw["storage_state"] = scene["storage_state"]
         if show:
             kw.update(record_video_dir=str(Path(out).parent / "pw-video"), record_video_size={"width": w, "height": h})
         ctx = browser.new_context(**kw)
         ctx.add_init_script(CURSOR_JS)
         page = ctx.new_page()
         t0 = time.monotonic()
-        page.goto(scene["url"], wait_until="networkidle")
+        page.goto(scene["url"], wait_until=scene.get("wait_until", "networkidle"))
         trim = time.monotonic() - t0 if show else 0
         if show:
             page.wait_for_timeout(800)
@@ -252,7 +262,44 @@ def run(scene, out=None):
         return ok
 
 
+def login(url, state, until, minutes=15, headless=False):
+    """A person signs in once in a visible browser; the session is saved for the scenes. Playwright's Chromium
+    uses a mock keychain, so macOS asks for no keychain password, and no debug port is opened."""
+    import os
+    import re
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        ctx = browser.new_context(viewport={"width": 1280, "height": 860})
+        page = ctx.new_page()
+        page.goto(url, wait_until="load")
+        print(f"A browser window named \"Chromium\" (or \"Google Chrome for Testing\") is open at {url}.\n"
+              f"Sign in there. It closes by itself once the address matches {until!r}.", flush=True)
+        end = time.monotonic() + minutes * 60
+        while time.monotonic() < end:
+            if any(re.search(until, pg.url) for pg in ctx.pages):
+                page.wait_for_timeout(1500)            # let the last cookies land
+                Path(state).parent.mkdir(parents=True, exist_ok=True)
+                ctx.storage_state(path=state)
+                os.chmod(state, 0o600)
+                print(f"signed in: session saved to {state}")
+                browser.close()
+                return True
+            page.wait_for_timeout(1000)
+        browser.close()
+        print(f"timed out after {minutes} min: no page matched {until!r}")
+        return False
+
+
 if __name__ == "__main__":
+    if sys.argv[1] == "login":
+        import argparse
+        ap = argparse.ArgumentParser(prog="browser.py login")
+        ap.add_argument("url"), ap.add_argument("state")
+        ap.add_argument("--until", required=True, help="regex the address must match once signed in")
+        ap.add_argument("--minutes", type=float, default=15)
+        ap.add_argument("--headless", action="store_true", help="for tests only")
+        a = ap.parse_args(sys.argv[2:])
+        sys.exit(0 if login(a.url, a.state, a.until, a.minutes, a.headless) else 1)
     mode, scene_path = sys.argv[1], sys.argv[2]
     scene = json.loads(Path(scene_path).read_text())
     if mode == "dry":
