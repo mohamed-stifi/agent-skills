@@ -27,11 +27,18 @@ else is optional.
  "segments": [ ... ]}
 ```
 
+- `covers` (optional): the paths this chapter shows, relative to its folder (`"api/"`, or `"sim:dags/"` for
+  another `WORKDIRS` entry; default: the whole folder). A change there records it again; a change elsewhere
+  doesn't. `inputs`: files outside git (`".env"`) or `"cmd:<command>"` outputs that also shape the picture.
+- `fresh: True`: the `before` hook resets everything this chapter needs, so it doesn't depend on the chapters
+  before it. A recording is reused only with the same scene before it, so a re-recorded chapter re-records
+  those after it, up to the next fresh one.
 - `num` is a two-digit string. Output goes to `chapters/04-ci-rules.mp4`, and `--only 04` selects it.
 - `before` holds shell commands run (in `WORKDIRS["main"]`, with `ENV`) before recording or a dry run. One
   that exits non-zero stops the build with its output (add `|| true` where a failure is fine).
   Use it to reset state off camera (a clean database, a fault undone). What the viewer must do themselves
-  (start a service, set a variable) belongs on screen, in a scene. They are skipped with `--reuse-terms`.
+  (start a service, set a variable) belongs on screen, in a scene. They run only when a scene of the chapter
+  is recorded live (a chapter whose recordings are all reused needs no state).
   Their output is hidden, so a failing hook only shows up as odd output in the scenes. Dry-run first.
 - A chapter is rebuilt only when its dict or the voice settings (`VOICE_ENGINE`, `VOICE`, `SPEED`, `RATE`) change (a hash in `build/NN/meta.json`).
   Use `--force` to rebuild anyway, for example after the repo changed.

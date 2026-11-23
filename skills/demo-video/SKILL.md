@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "4.1.0"
+  version: "4.2.0"
   author: mohamed-stifi
 ---
 
@@ -116,6 +116,7 @@ types (`browser`, `api`, `term`, `diagram`, `slide`, `card`) and the narration r
 
 ```bash
 cd VD/videos/<slug>/vN/src
+bash run.sh engine.py --plan           # per chapter: reuse, re-voice, or record again, and why
 bash run.sh engine.py --dry            # runs every action for real, prints the output, makes no video
 bash run.sh engine.py --only 03        # record one chapter, then look at frames before the rest
 bash run.sh engine.py --detach         # record everything missing or changed in the background, then the video
@@ -130,8 +131,21 @@ time: **tell the user how long and how heavy** (services, a local model, a brows
 long videos with `--detach`: the recording survives the end of your session, keeps the computer awake, and
 only one runs at a time; check it with `--status`, never with a shell loop. A recording also stops at the
 first failed command, so it never records an hour of errors. Check a recorded chapter by reading frames
-(`ffmpeg -v error -ss 20 -i chapters/03-*.mp4 -frames:v 1 build/check.png`). Chapters are cached by a hash of
-their script, so re-runs rebuild only what changed, and a stopped recording resumes where it stopped.
+(`ffmpeg -v error -ss 20 -i chapters/03-*.mp4 -frames:v 1 build/check.png`). A stopped recording resumes where it stopped.
+
+**Reuse.** Every scene's live recording (a *capture*) is kept in `VD/clips/`, under a key made from what shapes
+its picture: its commands or browser steps, the code its chapter `covers` (committed, uncommitted and untracked
+files), any `inputs` (git-ignored settings, `cmd:` outputs), the capture tools, and the scene before it. So:
+- a narration, numbering or voice change records nothing live; the chapter is only re-voiced and re-framed;
+- a change in covered code records that chapter again, and the chapters after it up to the next `fresh` one
+  (whose `before` hook resets the state); give each chapter a narrow `covers` and mark `fresh` the ones that
+  start from scratch;
+- a new video that reuses chapters of others (feature A + B) copies those chapters (same commands, same clone,
+  each run starting at a `fresh` chapter) and records only the new ones.
+Run `--plan` first and tell the user what will be recorded again and why. A recording whose screen changed while
+its words did not is flagged "CHECK NARRATION": read the new frames and fix the words. A chapter recorded again
+after reused ones runs without their effects: restore the checkpoint (`ledger.py restore`) or start it fresh.
+`engine.py --gc` removes kept recordings no version uses any more.
 
 ## 6. Verify and hand over
 `ffprobe -v error -show_chapters -show_streams -of compact <name>.mp4` must show 1920×1080 h264, aac, a
@@ -169,6 +183,7 @@ last cleanup; tell the user, with any leftover outside (an account, an app).
 │   └── build/                    # intermediate files
 ├── work/<name>/                  # the clones: every action runs here; kept and refreshed
 ├── secrets/                      # tokens and saved sign-ins (mode 700)
+├── clips/<key>/                  # kept recordings (captures), reused across chapters, versions and videos
 ├── state/<project>/              # checkpoints: the data of the video's own containers, as files
 ├── logs/, run/                   # recording logs; the lock and pid files
 ```

@@ -1,5 +1,16 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 4.2.0 — 2026-11-23
+- **Reuse of recorded scenes.** Each live recording (a capture) is kept in `.video_demo_dir/clips/` under a key
+  made from its commands or browser steps, the code its chapter `covers` (committed, uncommitted, untracked),
+  its `inputs`, the capture tools, and the scene before it (so a re-recorded scene re-records what follows,
+  up to the next `fresh` chapter). Narration, numbering and voice changes record nothing live; another video
+  reuses the same chapters.
+- `engine.py --plan`: per chapter, reuse / re-voice / record again, with the reason (which files changed).
+- "CHECK NARRATION" when a recording's screen text changed but its words did not.
+- `engine.py --gc` removes recordings no version uses. `--reuse-terms` now means: use this scene's last
+  recording even if its key changed. Before-hooks run only when a scene is recorded live.
+
 ## 4.1.0 — 2026-11-23
 - **Cleanup of what the video owns** (`scripts/ledger.py`): `snapshot` before starting anything; `cleanup
   [--dry] [--limit-gb 2]` checkpoints the data of the video's own Compose projects, then removes their

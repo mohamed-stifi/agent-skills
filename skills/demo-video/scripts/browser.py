@@ -253,12 +253,16 @@ def run(scene, out=None):
                 break
         if show:
             page.wait_for_timeout(1200)
+        try:
+            text = page.inner_text("body")[:20000] if show else ""   # the screen text, to spot changes later
+        except Exception:
+            text = ""
         video = page.video
         ctx.close()
         browser.close()
         if show:
             Path(video.path()).replace(out)
-            print(json.dumps({"trim": round(trim, 2), "ok": ok}))
+            print(json.dumps({"trim": round(trim, 2), "ok": ok, "text": text}))
         return ok
 
 

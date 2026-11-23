@@ -35,6 +35,7 @@ written for the video, a function from a hidden setup) stops the run.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import math
@@ -696,8 +697,215 @@ def as_term(seg):
     return {**seg, "type": "term", "cmds": cmds + list(seg.get("then", []))}
 
 
+# --- captures: the slow, live part of a scene, kept and reused while nothing that shapes it changes --------------
+CAPTURE_VERSION = "1"            # bump when the way scenes are captured changes (tape settings, cursor overlay)
+CAPKEYS: dict = {}               # (chapter num, scene index) -> (key, parts), for every capture scene of the script
+
+
+def sha(x) -> str:
+    return hashlib.sha256(x if isinstance(x, bytes) else str(x).encode()).hexdigest()
+
+
+def git_out(root, *args) -> str:
+    r = subprocess.run(["git", "-C", str(root), *args], capture_output=True)
+    return r.stdout.decode(errors="replace").strip() if r.returncode == 0 else ""
+
+
+@functools.lru_cache(None)
+def fingerprint(root: str, rel: str) -> dict:
+    """The content of `rel` under `root`: committed (a git tree hash), uncommitted changes and untracked files."""
+    rp = Path(root)
+    if git_out(rp, "rev-parse", "--is-inside-work-tree") == "true":
+        tree = git_out(rp, "rev-parse", f"HEAD:./{'' if rel in ('.', '') else rel}")
+        diff = git_out(rp, "diff", "HEAD", "--", rel or ".")
+        new = git_out(rp, "ls-files", "--others", "--exclude-standard", "--", rel or ".").splitlines()
+        extra = [f"{f}:{sha((rp / f).read_bytes()) if (rp / f).is_file() else ''}" for f in sorted(new)]
+        return {"tree": tree, "fp": sha(tree + diff + "".join(extra))}
+    files = sorted((rp / rel).rglob("*"))[:20000] if (rp / rel).exists() else []
+    return {"tree": "", "fp": sha("".join(f"{f}:{f.stat().st_size}:{f.stat().st_mtime_ns}" for f in files if f.is_file()))}
+
+
+@functools.lru_cache(None)
+def tool_versions() -> str:
+    vhs = subprocess.run(["vhs", "--version"], capture_output=True, text=True).stdout.strip() if shutil.which("vhs") else ""
+    try:
+        from importlib.metadata import version
+        pw = version("playwright")
+    except Exception:
+        pw = ""
+    bp = Path(__file__).with_name("browser.py")
+    return json.dumps({"vhs": vhs, "playwright": pw, "browser.py": sha(bp.read_bytes()) if bp.exists() else "",
+                       "capture": CAPTURE_VERSION})
+
+
+def covers(chap, seg) -> dict:
+    """{path: fingerprint} of the code a chapter shows (`covers`, default: the scene's whole folder)."""
+    out = {}
+    for c in chap.get("covers", ["."]):
+        key, _, rel = c.partition(":")
+        if not rel or key not in SCRIPT.WORKDIRS:
+            key, rel = "", c
+        root = Path(os.path.expanduser(str(SCRIPT.WORKDIRS[key] if key else workdir(seg)))).resolve()
+        out[c] = {**fingerprint(str(root), rel), "root": str(root), "rel": rel}
+    return out
+
+
+def inputs_fp(chap, seg) -> dict:
+    """Files or command outputs outside git that change the picture (`inputs`: ["config/.env", "cmd:ollama list"])."""
+    out = {}
+    for x in chap.get("inputs", []) + seg.get("inputs", []):
+        if x.startswith("cmd:"):
+            r = subprocess.run(x[4:], shell=True, executable="/bin/bash", cwd=SCRIPT.WORKDIRS.get("main"),
+                               capture_output=True, timeout=60)
+            out[x] = sha(r.stdout)
+        else:
+            f = Path(os.path.expanduser(str(SCRIPT.WORKDIRS.get("main", ".")))) / x
+            out[x] = sha(f.read_bytes()) if f.is_file() else "missing"
+    return out
+
+
+def capture_key(seg, chap, prev):
+    if seg["type"] == "term":
+        what = tape_for(seg, Path("CLIP.mp4"), Path("/RC"))
+    else:
+        what = json.dumps({"url": seg["url"], "steps": seg.get("steps", []), "w": W, "h": TERM_H,
+                           **{k: seg[k] for k in BROWSER_OPTS if k in seg}}, sort_keys=True)
+    parts = {"what": sha(what), "covers": covers(chap, seg), "inputs": inputs_fp(chap, seg), "tools": tool_versions(),
+             "prev": prev}
+    return sha(json.dumps({**parts, "covers": {k: v["fp"] for k, v in parts["covers"].items()}}, sort_keys=True))[:24], parts
+
+
+def plan_keys(all_chaps):
+    """Capture keys for every scene, in order: a scene's key includes the one before it (what it did to the
+    system), so a re-recorded scene re-records what follows it, up to the next chapter marked `fresh`."""
+    prev, keys = None, {}
+    for chap in all_chaps:
+        if chap.get("fresh"):
+            prev = None
+        for i, seg in enumerate(map(as_term, chap["segments"])):
+            if seg["type"] in ("term", "browser"):
+                keys[(chap["num"], i)] = capture_key(seg, chap, prev)
+                prev = keys[(chap["num"], i)][0]
+    return keys
+
+
+def clips_dir() -> Path:
+    return (VDIR / "clips") if VDIR else (BUILD / "clips")
+
+
+def cached(key) -> Path | None:
+    d = clips_dir() / key
+    return d if (d / "done").exists() else None
+
+
+CAPTURES = BUILD / "captures.json"
+
+
+def load_captures() -> dict:
+    return json.loads(CAPTURES.read_text()) if CAPTURES.exists() else {}
+
+
+def why_recapture(old: dict | None, parts: dict) -> list[str]:
+    if not old:
+        return ["never recorded"]
+    o, why = old["parts"], []
+    if o["what"] != parts["what"]:
+        why.append("its commands or steps changed")
+    for c, v in parts["covers"].items():
+        w = o["covers"].get(c)
+        if not w or w["fp"] == v["fp"]:
+            continue
+        files = git_out(v["root"], "diff", "--name-only", w["tree"], v["tree"]).splitlines() if w["tree"] and \
+            v["tree"] and w["tree"] != v["tree"] else []
+        dirty = git_out(v["root"], "diff", "--name-only", "HEAD", "--", v["rel"]).splitlines() + \
+            git_out(v["root"], "ls-files", "--others", "--exclude-standard", "--", v["rel"]).splitlines()
+        names = sorted({*(f"{v['rel'].rstrip('/')}/{f}" if v["rel"] not in (".", "") else f for f in files), *dirty})
+        why.append(f"code it covers changed: {', '.join(names[:6]) or c}")
+    if o["inputs"] != parts["inputs"]:
+        why.append("an input changed: " + ", ".join(k for k in parts["inputs"] if parts["inputs"][k] != o["inputs"].get(k)))
+    if o["tools"] != parts["tools"]:
+        why.append("a capture tool changed (vhs, playwright, browser.py or the engine)")
+    if o["prev"] != parts["prev"]:
+        why.append("it follows a scene that is recorded again")
+    return why or ["recording missing"]
+
+
+def plan(chaps):
+    """What a build would do, per chapter, without doing it."""
+    caps, live_before = load_captures(), False
+    for chap in chaps:
+        scenes = [(i, *CAPKEYS[(chap["num"], i)]) for i in range(len(chap["segments"])) if (chap["num"], i) in CAPKEYS]
+        live = [(i, k, p) for i, k, p in scenes if not cached(k)]
+        out = CHAPTERS / f"{chap['num']}-{chap['slug']}.mp4"
+        meta = BUILD / chap["num"] / "meta.json"
+        same = out.exists() and meta.exists() and json.loads(meta.read_text()).get("key") == chapter_key(chap)
+        if same:
+            print(f"{chap['num']} {chap['title']}: reuse (nothing changed)")
+        elif not live:
+            print(f"{chap['num']} {chap['title']}: re-voice and re-frame only (every recording reused, nothing live)")
+        else:
+            print(f"{chap['num']} {chap['title']}: RECORD AGAIN")
+            for i, k, p in live:
+                print(f"   scene {i}: " + "; ".join(why_recapture(caps.get(f"{chap['num']}/{i}"), p)))
+            if not chap.get("fresh") and not live_before and chap is not chaps[0]:
+                print("   note: the chapters before it are reused, so their effects are not live now. Restore a "
+                      "checkpoint taken after them (ledger.py restore), or mark this chapter fresh, or record from "
+                      "the last fresh chapter.")
+        live_before = live_before or bool(live)
+        for i in range(len(chap["segments"])):
+            c = caps.get(f"{chap['num']}/{i}", {})
+            if c.get("recheck") and c.get("say") == sha(chap["segments"][i]["say"]):
+                print(f"   CHECK NARRATION: scene {i}: its screen changed at the last recording; the words did not")
+
+
+def gc():
+    """Remove kept recordings that no version of any video uses any more."""
+    roots = [VDIR / "videos"] if VDIR else [ROOT]
+    used = {c["key"] for r in roots for f in r.glob("**/build/captures.json") for c in json.loads(f.read_text()).values()}
+    gone = 0
+    for d in clips_dir().glob("*"):
+        if d.is_dir() and d.name not in used:
+            gone += sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+            shutil.rmtree(d)
+    print(f"removed {gone / 1e6:.1f} MB of unused recordings; {len(used)} kept")
+
+
+def chapter_key(chap) -> str:
+    caps = [CAPKEYS[(chap["num"], i)][0] for i in range(len(chap["segments"])) if (chap["num"], i) in CAPKEYS]
+    return sha(json.dumps([chap, VOICE_ENGINE, VOICE, SPEED, RATE, caps], sort_keys=True))
+
+
 # Scene options passed to browser.py: a saved sign-in, when the first page counts as open, a visible window.
 BROWSER_OPTS = ("storage_state", "wait_until", "headless")
+
+
+def capture(seg, chap, idx, key, tmp) -> Path:
+    """Record a scene live into the kept recordings (written aside, then moved in: a killed run leaves nothing)."""
+    work = clips_dir() / f".{key}.{os.getpid()}"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    if seg["type"] == "browser":
+        scene = work / "scene.json"
+        scene.write_text(json.dumps({"url": seg["url"], "steps": seg.get("steps", []), "width": W,
+                                     "height": TERM_H, **{k: seg[k] for k in BROWSER_OPTS if k in seg}}))
+        outp = run([sys.executable, str(Path(__file__).with_name("browser.py")), "record", str(scene),
+                    str(work / "clip.webm")])
+        res = json.loads(outp.strip().splitlines()[-1])
+        if not res.get("ok"):
+            stop(f"chapter {chap['num']} scene {idx}", f"a browser step failed:\n{outp}", chap)
+        (work / "screen.txt").write_text(res.pop("text", ""))
+        (work / "meta.json").write_text(json.dumps(res))
+    else:
+        rc = tmp / "status.txt"
+        tape = tape_for(seg, work / "clip.mp4", rc).replace("Output clip.mp4", "Output clip.mp4\nOutput screen.txt", 1)
+        (work / "seg.tape").write_text(tape)
+        run(["vhs", "seg.tape"], cwd=work)          # VHS wants a bare Output file name: run it in the folder
+        check_statuses(seg, f"chapter {chap['num']} scene {idx}", chap, rc)
+    (work / "done").write_text(time.strftime("%Y-%m-%d %H:%M"))
+    dest = clips_dir() / key
+    shutil.rmtree(dest, ignore_errors=True)
+    work.rename(dest)
+    return dest
 
 
 def make_segment(seg, chap, idx: int, out: Path):
@@ -733,27 +941,29 @@ def make_segment(seg, chap, idx: int, out: Path):
              "-t", f"{dur:.2f}", "-vf", "format=yuv420p", "-c:v", "libx264", "-preset", "slow", "-crf", "16",
              "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-shortest", str(out)])
         return dur, _times
-    trim = 0.0
-    if seg["type"] == "browser":
-        clip, meta = tmp / "screen.webm", tmp / "browser.json"
-        if not (REUSE_TERMS and clip.exists() and meta.exists()):
-            scene = tmp / "scene.json"
-            scene.write_text(json.dumps({"url": seg["url"], "steps": seg.get("steps", []), "width": W,
-                                         "height": TERM_H, **{k: seg[k] for k in BROWSER_OPTS if k in seg}}))
-            outp = run([sys.executable, str(Path(__file__).with_name("browser.py")), "record", str(scene), str(clip)])
-            res = json.loads(outp.strip().splitlines()[-1])
-            if not res.get("ok"):
-                stop(f"chapter {chap['num']} scene {idx}", f"a browser step failed:\n{outp}", chap)
-            meta.write_text(json.dumps(res))
-        trim = json.loads(meta.read_text()).get("trim", 0.0)
-    else:                                       # terminal
-        clip = tmp / "term.mp4"
-        tape = tmp / "seg.tape"
-        if not (REUSE_TERMS and clip.exists()):     # --reuse-terms: keep the recording, redo voice and frame
-            rc = tmp / "status.txt"
-            tape.write_text(tape_for(seg, clip, rc))
-            run(["vhs", str(tape)], cwd=tmp)        # VHS wants a bare Output file name: run it in the folder
-            check_statuses(seg, f"chapter {chap['num']} scene {idx}", chap, rc)
+    key, parts = CAPKEYS[(chap["num"], idx)]
+    sid, caps = f"{chap['num']}/{idx}", load_captures()
+    got = cached(key) or (REUSE_TERMS and caps.get(sid) and cached(caps[sid]["key"]))
+    if got:
+        print(f"      reused recording {got.name[:10]} (nothing it shows changed)", flush=True)
+    else:
+        print("      live: recording now", flush=True)
+        got = capture(seg, chap, idx, key, tmp)
+        old = caps.get(sid)
+        text = (got / "screen.txt").read_text(errors="replace")
+        caps[sid] = {"key": key, "parts": parts, "text": sha(text), "say": sha(seg["say"]),
+                     "recheck": bool(old and old.get("text") != sha(text))}
+        if caps[sid]["recheck"]:
+            print(f"      CHECK NARRATION: chapter {chap['num']} scene {idx}: the screen differs from the last "
+                  "recording; make sure the words still match it", flush=True)
+        CAPTURES.write_text(json.dumps(caps, indent=1))
+        caps = load_captures()
+    if caps.get(sid, {}).get("key") != got.name:            # remember which recording this scene uses now
+        caps[sid] = {**caps.get(sid, {"parts": parts, "text": "", "say": sha(seg["say"]), "recheck": False}),
+                     "key": got.name}
+        CAPTURES.write_text(json.dumps(caps, indent=1))
+    clip = next(got.glob("clip.*"))
+    trim = json.loads((got / "meta.json").read_text()).get("trim", 0.0) if (got / "meta.json").exists() else 0.0
     cdur = duration(clip) - trim
     frame = tmp / "frame.png"
     speed = ""
@@ -820,19 +1030,20 @@ def build_chapter(chap, force=False):
     CHAPTERS.mkdir(exist_ok=True)
     out = CHAPTERS / f"{chap['num']}-{chap['slug']}.mp4"
     meta = BUILD / chap["num"] / "meta.json"
-    key = hashlib.sha256(json.dumps([chap, VOICE_ENGINE, VOICE, SPEED, RATE], sort_keys=True).encode()).hexdigest()
+    key = chapter_key(chap)
     if out.exists() and meta.exists() and json.loads(meta.read_text()).get("key") == key and not force:
         print(f"= {out.name} (unchanged)")
         return json.loads(meta.read_text())
     print(f"> chapter {chap['num']} {chap['title']}", flush=True)
-    if not REUSE_TERMS:
+    live = [i for i in range(len(chap["segments"])) if (chap["num"], i) in CAPKEYS and not cached(CAPKEYS[(chap["num"], i)][0])]
+    if live and not REUSE_TERMS:                       # hooks set the state for live scenes; reused ones need none
         run_hooks(chap)
     segs, timeline, t = [], [], 0.0
     for i, seg in enumerate(chap["segments"]):
         p = BUILD / chap["num"] / f"{i:02d}.mp4"
         print(f"  - {i:02d} {seg['type']:5} {seg.get('title') or seg.get('caption', '')[:70]}", flush=True)
         d, times = make_segment(seg, chap, i, p)
-        if seg["type"] in ("term", "api", "browser"):
+        if seg["type"] in ("term", "api", "browser") and i in live:
             after_scene(seg, f"chapter {chap['num']} scene {i}", chap)
         segs.append(p)
         timeline.append({"start": t, "end": t + d, "say": seg["say"], "times": times})
@@ -1064,6 +1275,8 @@ if __name__ == "__main__":
     ap.add_argument("--detach", action="store_true", help="record in the background, outliving this session")
     ap.add_argument("--status", action="store_true", help="is a detached recording running? how did the last end?")
     ap.add_argument("--detached-child", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--plan", action="store_true", help="per chapter: reuse, re-voice or record again, and why")
+    ap.add_argument("--gc", action="store_true", help="remove kept recordings no video version uses any more")
     a = ap.parse_args()
     if a.status:
         status()
@@ -1071,7 +1284,15 @@ if __name__ == "__main__":
     REUSE_TERMS = a.reuse_terms
     sys.path.insert(0, str(Path(__file__).parent))
     import script as SCRIPT  # noqa: E402
-    chaps = [c for c in number_steps(SCRIPT.CHAPTERS) if not a.only or c["num"] in a.only]
+    numbered = number_steps(SCRIPT.CHAPTERS)
+    chaps = [c for c in numbered if not a.only or c["num"] in a.only]
+    if a.gc:
+        gc()
+        sys.exit()
+    CAPKEYS.update(plan_keys(numbered))
+    if a.plan:
+        plan(chaps)
+        sys.exit()
     check_viewer_commands(chaps)
     if a.detach:
         detach(sys.argv[1:])
