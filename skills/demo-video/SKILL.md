@@ -3,7 +3,7 @@ name: demo-video
 description: Make videos that show a repo really being used and explain it, made to order - a demo of one feature or service, a step-by-step tutorial, a how-it-works explainer with live demos, a pilot (test record), or a guide to the whole project - for the audience the user names, plus a written doc. The agent first uses the thing for real, as its user or developer would, then records it with a local neural voice, captions and chapters. Use when the user asks to record, film or "make a video" of a repo, a feature or a service; for a demo, tutorial, walkthrough, onboarding, pilot or "show me how to use / how it works" video; or to understand and explain a project an agent built.
 compatibility: macOS or Linux with ffmpeg/ffprobe, uv, vhs, jq, git; Kokoro voice files (~340 MB, fetched once by scripts/setup.sh). Docker or other services only if the repo needs them.
 metadata:
-  version: "4.2.0"
+  version: "4.3.0"
   author: mohamed-stifi
 ---
 
@@ -63,6 +63,18 @@ provided, say how the video will work around it (a local model, sample data, ski
 '<url regex once signed in>'`. It opens a browser window named "Chromium" (or "Google Chrome for Testing"),
 with no keychain prompt; tell the user that name. They sign in, it saves the session (mode 600) and closes;
 browser scenes then load it with `"storage_state"`. One sign-in serves every scene.
+
+**Outside services** (Slack, a cloud console, an OAuth app, a webhook, a model provider): a new viewer has to
+set them up too, so each one gets its own **setup chapter**, recorded before the chapters that use it.
+- **Steps the agent can do alone** happen on screen, as the viewer would do them. Examples: creating the app
+  from the repo's manifest, choosing scopes, installing it, inviting the bot to a channel. Values the viewer
+  must copy (tokens, IDs) go into the git-ignored secrets file and are named on screen, never shown.
+- **Steps only the user can do** (sign in, a confirmation code, a payment, an admin approval) are done
+  **together**. Say in the chat exactly what they will do and in which window, then wait. The sign-in itself
+  uses `browser.py login` above, which is not recorded, so the user's email and codes never appear. At that
+  point the chapter shows one line ("Sign in to Slack with your own account"), then continues from the
+  signed-in page.
+- The doc gets the same chapter as a written step list, so a reader can set the service up without the video.
 
 ## 4. Pilot run: use it for real
 First, before starting anything: `python3 SKILL/scripts/ledger.py snapshot <repo>`. It records what already
