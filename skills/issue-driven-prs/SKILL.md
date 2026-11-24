@@ -2,7 +2,7 @@
 name: issue-driven-prs
 description: Start every pull request from a GitHub issue written first - Vocabulary (the principal term and its sub-terms), Behaviors (Given / When / Then scenarios), Why and Impact - split big work into a tracking issue with one sub-issue per PR or stack layer, link each PR with Closes #n and the test that proves each scenario, and keep stacked PRs from closing the wrong issue. Use before any code, docs or config change that will become a PR in a GitHub repo; when asked to "open an issue first", "write the spec issue", "plan this as issues", "make a tracking issue"; when the repo's AGENTS.md says issue first; or when opening, stacking or merging PRs that close issues.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: mohamed-stifi
 ---
 
@@ -57,11 +57,17 @@ gh issue create -R REPO --title "<the change>" --label <labels> --body-file issu
 ## 5. Branch, commit, open the PR
 - Branch and commit with the repo's conventions. In commit messages write `Part of #n` or `Refs #n`: a
   closing keyword in a commit closes the issue when that commit reaches the default branch.
-- **Scenarios → tests, before opening.** Each scenario the PR covers maps to a test that proves it. A scenario
-  it does not cover is listed with the reason.
+- **Scenarios → tests, before opening.** Each scenario the PR covers maps to a test that proves it, named
+  after the behavior, so the tests read as the documentation of what the code does. A scenario it does not
+  cover is listed with the reason.
+- **Challenge the tests, before opening.** A test that passes may still check nothing. Have a separate agent
+  or reviewer (not the author) break the changed code on purpose: flip a condition, change a boundary, remove
+  a call, return a wrong value. Then run the tests, with the language's mutation tool when there is one
+  (Stryker, mutmut, PIT, cargo-mutants). Only tests that catch the breaks count. Each break that no test
+  catches gets a test, or a reason in the PR.
 - **PR body** (template in `SKILL/references/templates.md`): `Closes #n` when the PR covers **every**
   scenario of the issue; `Part of #n` when some stay open (they stay in the issue, with the reason, or move to
-  a new issue you link). Then the scenarios covered, each with its test.
+  a new issue you link). Then the scenarios covered, each with its test, and the mutation report (breaks tried, caught, not caught).
 
 ## 6. Stacks: each layer closes only its own issue
 GitHub closes an issue when a PR merges into the default branch with `closes`, `fixes` or `resolves` (any

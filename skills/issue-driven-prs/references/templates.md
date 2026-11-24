@@ -68,6 +68,10 @@ Closes #<n>            <!-- or "Part of #<n>" when some scenarios stay open -->
 
 ## Not covered
 - <scenario>: <reason>; stays open in #<n> (or moved to #<m>).
+
+## Tests challenged (mutations)
+Run by <who, not the author>, with <tool or "by hand">: <tried> breaks, <caught> caught.
+- Not caught: <file:line, the break>: <test added, or why it is acceptable>.
 ```
 
 ## PR body (a layer of a stack)
@@ -80,6 +84,8 @@ Part of #<tracking>
 ## Scenarios covered
 | Scenario | Test |
 |---|---|
+
+## Tests challenged (mutations)
 
 ## Merge order
 Layer <k> of <total>: merge after the PR for issue <n>, without "#" in notes like this one.
