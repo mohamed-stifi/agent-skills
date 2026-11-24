@@ -1,5 +1,10 @@
 # Changelog — demo-video (formerly repo-walkthrough-video)
 
+## 4.3.0 — 2026-11-24
+- **Outside services get a recorded setup chapter** (Slack, cloud consoles, OAuth apps, webhooks): the agent
+  does on screen what it can alone, and the steps only the user can do (sign-in, codes, payment, approval) are
+  done together. Sign-ins stay off the recording (`browser.py login`), and the doc lists the same steps.
+
 ## 4.2.0 — 2026-11-23
 - **Reuse of recorded scenes.** Each live recording (a capture) is kept in `.video_demo_dir/clips/` under a key
   made from its commands or browser steps, the code its chapter `covers` (committed, uncommitted, untracked),
